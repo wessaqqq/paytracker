@@ -97,15 +97,14 @@ async function main() {
   }
   const state = await getState();
 
-  const dbg = SOURCE === 'Supabase'
-    ? '🟢 <i>Источник: общая база (Supabase)</i>\n\n'
-    : `🔴 <i>Источник: запасной файл. База не прочиталась — ${SRCERR}</i>\n\n`;
+  // Если база вдруг не прочиталась — тихо логируем (в сообщение не тащим)
+  if (SOURCE !== 'Supabase') console.warn('Источник: запасной файл. Причина:', SRCERR);
 
   // Тест-режим (кнопка Run workflow → test = true): шлём проверочное сообщение с вашими никами
   if (process.env.TEST === 'true') {
     const tg = (state.settings && state.settings.tg) || {};
     const nick = o => (tg[o] ? String(tg[o]).replace(/^@?/, '@') : '@' + o);
-    const text = dbg + `✅ <b>BYbank — тест бота</b>\n\nБот на связи и умеет тегать вас лично: ${nick('yulia')} ${nick('masha')}\n\nВ будни в 09:00 сюда будут приходить только 🔥 горящие оплаты и ⚠ просрочки. Если тихо — значит всё под контролем.`;
+    const text = `✅ <b>BYbank — тест бота</b>\n\nБот на связи и умеет тегать вас лично: ${nick('yulia')} ${nick('masha')}\n\nВ будни в 09:00 сюда будут приходить только 🔥 горящие оплаты и ⚠ просрочки. Если тихо — значит всё под контролем.`;
     const r = await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chat_id: CHAT, text, parse_mode: 'HTML', disable_web_page_preview: true }),
@@ -123,7 +122,7 @@ async function main() {
   const digest = buildDigest(state);
 
   if (!digest) { console.log('Тихий день — ничего горящего, сообщение не отправлено ✅'); return; }
-  const text = dbg + digest;
+  const text = digest;
 
   const res = await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
     method: 'POST',
