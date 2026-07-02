@@ -584,7 +584,7 @@ const payFilter = {q:'', person:'all', status:'all'};
 const calFilter = {person:'all'};
 const NAV_TITLE = {home:'Главная', projects:'Проекты', payments:'Оплаты', calendar:'Календарь', settings:'Настройки'};
 
-function defaultSettings(){return {theme:'light', digestTime:'09:00', tg:{yulia:'@yulia', masha:'@masha', token:'', yuliaChat:'', mashaChat:''}, notif:{hot:true,overdue:true,waiting:true}};}
+function defaultSettings(){return {theme:'light', digestTime:'09:00', tg:{yulia:'@yulia', masha:'@masha', token:'', yuliaChat:'', mashaChat:''}, notif:{hot:true,soon10:true,overdue:true,waiting:true}};}
 function normalizeState(s){
   if(!(s&&s.projects)) s={projects:JSON.parse(JSON.stringify(SEED)), memes:[]};
   if(!s.memes) s.memes=[];
@@ -1006,14 +1006,15 @@ function notifPreview(){
     if(s.status==='paused'||s.status==='closed'||!s.end) return;
     const d=days(s.end), who=men(p.owner);
     if(st.notif.overdue && d<0) out.push(line('⚠ Просрочено',CB.overdue, `${s.svc} — ${p.name} · ${who} · оплата была ${fmt(s.end)}`));
-    else if(st.notif.hot && d>=0 && isHotToday(s.end)) out.push(line('🔥 Горит',CB.soon, `${s.svc} — ${p.name} · ${who} · оплатить до ${fmt(payDeadline(s.end))}`));
+    else if(st.notif.hot && d>=0 && isHotToday(s.end)) out.push(line('🔥 Пора платить (2 дн)',CB.soon, `${s.svc} — ${p.name} · ${who} · оплатить до ${fmt(payDeadline(s.end))}`));
+    else if(st.notif.soon10 && d>=8 && d<=10) out.push(line('📌 Скоро (10 дн)',['var(--blue-soft)','var(--blue-ink)'], `${s.svc} — ${p.name} · ${who} · через ${d} ${plural(d,'день','дня','дней')} (до ${fmt(s.end)})`));
     if(st.notif.waiting && s.status==='waiting') out.push(line('📨 Ждём оплату',['var(--sky-soft)','var(--sky-ink)'], `${s.svc} — ${p.name} · ${who} · платёжка отправлена`));
   }));
   return out;
 }
 function renderSettings(){
   const st=state.settings;
-  const toggles=[['hot','🔥 Горящие оплаты (за 2 раб. дня, с учётом выходных)'],['overdue','⚠ Просрочка'],['waiting','📨 Ждём оплату от клиента']];
+  const toggles=[['hot','🔥 Горящие оплаты (за 2 раб. дня, с учётом выходных)'],['soon10','📌 Заранее — за 10 дней'],['overdue','⚠ Просрочка'],['waiting','📨 Ждём оплату от клиента']];
   const prev=notifPreview();
   document.getElementById('setWrap').innerHTML=`
     <div class="panel set-card">
