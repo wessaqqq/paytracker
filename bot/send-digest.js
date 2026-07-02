@@ -31,9 +31,9 @@ function isHotToday(iso) { const from = minusBiz(payDeadline(iso), LEAD_BIZ); co
 
 function buildDigest(state) {
   const n = (state.settings && state.settings.notif) || {};
-  const notif = { hot: n.hot !== false, overdue: n.overdue !== false, waiting: n.waiting !== false };
+  const notif = { hot: n.hot !== false, soon10: n.soon10 !== false, overdue: n.overdue !== false, waiting: n.waiting !== false };
   const tg = (state.settings && state.settings.tg) || {};
-  const groups = { overdue: [], hot: [], waiting: [] };
+  const groups = { overdue: [], hot: [], soon10: [], waiting: [] };
   const pinged = new Set();
 
   (state.projects || []).filter(p => !p.archived).forEach(p => {
@@ -45,18 +45,20 @@ function buildDigest(state) {
         const d = daysTo(s.end);
         if (notif.overdue && d < 0) { groups.overdue.push(`• ${s.svc} — ${p.name} (${owner}), было ${fmt(s.end)}`); if (handle) pinged.add(handle); }
         else if (notif.hot && d >= 0 && isHotToday(s.end)) { groups.hot.push(`• ${s.svc} — ${p.name} (${owner}) — оплатить до ${fmtDate(payDeadline(s.end))}`); if (handle) pinged.add(handle); }
+        else if (notif.soon10 && d >= 8 && d <= 10) { groups.soon10.push(`• ${s.svc} — ${p.name} (${owner}) — через ${d} дн., ${fmt(s.end)}`); if (handle) pinged.add(handle); }
       }
       if (notif.waiting && s.status === 'waiting') { groups.waiting.push(`• ${s.svc} — ${p.name} (${owner})`); if (handle) pinged.add(handle); }
     });
   });
 
-  const hasAny = groups.overdue.length + groups.hot.length + groups.waiting.length;
+  const hasAny = groups.overdue.length + groups.hot.length + groups.soon10.length + groups.waiting.length;
   if (!hasAny) return null;   // тихий день — не шлём ничего
 
   const dateLabel = `${today.getUTCDate()} ${MON[today.getUTCMonth()]}`;
-  const parts = [`🔔 <b>BYbank — что горит на ${dateLabel}</b>`];
+  const parts = [`🔔 <b>BYbank — оплаты на ${dateLabel}</b>`];
   if (groups.overdue.length) parts.push(`\n⚠ <b>Просрочено:</b>\n` + groups.overdue.join('\n'));
-  if (groups.hot.length)     parts.push(`\n🔥 <b>Пора платить:</b>\n` + groups.hot.join('\n'));
+  if (groups.hot.length)     parts.push(`\n🔥 <b>Очень-очень пора платить (2 дн):</b>\n` + groups.hot.join('\n'));
+  if (groups.soon10.length)  parts.push(`\n📌 <b>Пора платить (10 дн):</b>\n` + groups.soon10.join('\n'));
   if (groups.waiting.length) parts.push(`\n📨 <b>Ждём оплату клиента:</b>\n` + groups.waiting.join('\n'));
   if (pinged.size) parts.push('\n' + [...pinged].join(' ') + ' — проверьте, пожалуйста 🙌');
 
@@ -100,11 +102,20 @@ async function main() {
   // Если база вдруг не прочиталась — тихо логируем (в сообщение не тащим)
   if (SOURCE !== 'Supabase') console.warn('Источник: запасной файл. Причина:', SRCERR);
 
-  // Тест-режим (кнопка Run workflow → test = true): шлём проверочное сообщение с вашими никами
+  // Тест-режим (кнопка Run workflow → test = true): шлём ПРИМЕР настоящего письма с вашими никами
   if (process.env.TEST === 'true') {
     const tg = (state.settings && state.settings.tg) || {};
     const nick = o => (tg[o] ? String(tg[o]).replace(/^@?/, '@') : '@' + o);
-    const text = `✅ <b>BYbank — тест бота</b>\n\nБот на связи и умеет тегать вас лично: ${nick('yulia')} ${nick('masha')}\n\nВ будни в 09:00 сюда будут приходить только 🔥 горящие оплаты и ⚠ просрочки. Если тихо — значит всё под контролем.`;
+    const y = nick('yulia'), m = nick('masha');
+    const text =
+      `🧪 <b>BYbank — тест (пример письма)</b>\n` +
+      `Так будут выглядеть напоминания. Данные тут выдуманные — для проверки формата.\n` +
+      `\n⚠ <b>Просрочено:</b>\n• Роистат — Марсель (Юля ${y}), было 02.07.26` +
+      `\n\n🔥 <b>Очень-очень пора платить (2 дн):</b>\n• Тильда — EvExperts (Юля ${y}) — оплатить до 05.07.26` +
+      `\n\n📌 <b>Пора платить (10 дн):</b>\n• Ройстат — Fortex (Маша ${m}) — через 10 дн., 14.07.26` +
+      `\n\n📨 <b>Ждём оплату клиента:</b>\n• Подписка Сергей — Марсель (Маша ${m})` +
+      `\n\n${y} ${m} — проверьте, пожалуйста 🙌` +
+      `\n\n✅ Бот подключён к общей базе — по будням в 09:00 будет присылать это по вашим реальным оплатам.`;
     const r = await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chat_id: CHAT, text, parse_mode: 'HTML', disable_web_page_preview: true }),
