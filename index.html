@@ -297,17 +297,19 @@
   .cchip{font-size:10.5px;font-weight:600;padding:2px 6px;border-radius:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
   .cmore{font-size:10px;color:var(--ink-faint);font-weight:600;padding-left:4px}
   /* settings */
-  .set-wrap{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
-  .set-card{padding:22px 24px}
+  .set-wrap{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+  .set-col{display:flex;flex-direction:column;gap:16px}
+  .set-wide{grid-column:1 / -1}
+  .set-card{padding:16px 18px}
   .set-title{font-size:16px;font-weight:700;font-family:var(--font-head);margin-bottom:3px}
   .set-hint{font-size:12.5px;color:var(--ink-faint);margin-bottom:14px;line-height:1.4}
-  .set-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0;border-top:1px solid var(--line-soft)}
+  .set-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 0;border-top:1px solid var(--line-soft)}
   .set-row.first,.set-row:first-of-type{border-top:0}
   .set-row .lbl{font-size:13.5px;font-weight:500}
   .set-in{border:1px solid var(--line);background:var(--bg2);border-radius:10px;padding:8px 11px;font-family:inherit;font-size:13px;color:var(--ink);width:150px}
   .set-in:focus{outline:2px solid var(--blue);outline-offset:-1px}
   .set-in.muted{color:var(--ink-faint);font-style:italic}
-  .set-sub{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--ink-faint);font-weight:600;margin:16px 0 4px}
+  .set-sub{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--ink-faint);font-weight:600;margin:13px 0 3px}
   .set-row input[type=checkbox]{width:18px;height:18px;accent-color:var(--blue);cursor:pointer;flex-shrink:0}
   .set-btn{border:0;cursor:pointer;font-family:inherit;font-weight:650;font-size:13.5px;padding:10px 14px;border-radius:12px;background:var(--blue-soft);color:var(--blue-ink);transition:.15s}
   .set-btn:hover{filter:brightness(.97)}
@@ -547,7 +549,9 @@ function icon(name,{size=34,circle='#e9ecf6',color='#4169dd',inner}={}){
 }
 
 /* ================= STATE ================= */
-const TODAY = new Date(2026,6,1);           // 1 июля 2026 — как в таблице
+const TODAY = (()=>{ const n=new Date(); return new Date(n.getFullYear(),n.getMonth(),n.getDate()); })(); // реальная сегодняшняя дата
+function isoOf(dt){ return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); }
+const TODAY_ISO = isoOf(TODAY);
 const NAMES = {yulia:'Юля', masha:'Маша'};
 const OTHER = {yulia:'masha', masha:'yulia'};
 const STORE = 'payflow.state.v3';
@@ -567,14 +571,14 @@ const SEED = [
 let state = load();
 let curWho = 'yulia';           // 'yulia' | 'masha' | 'all'
 let currentView = 'home';       // 'home' | 'projects' | 'payments' | 'calendar' | 'settings'
-let calDate = new Date(2026,6,1);
-let selDay = '2026-07-01';
+let calDate = new Date(TODAY.getFullYear(),TODAY.getMonth(),1);
+let selDay = TODAY_ISO;
 const projFilter = {q:'', person:'all', status:'all', arch:false};
 const payFilter = {q:'', person:'all', status:'all'};
 const calFilter = {person:'all'};
 const NAV_TITLE = {home:'Главная', projects:'Проекты', payments:'Оплаты', calendar:'Календарь', settings:'Настройки'};
 
-function defaultSettings(){return {theme:'light', digestTime:'09:00', tg:{yulia:'@yulia', masha:'@masha', token:'', yuliaChat:'', mashaChat:''}, notif:{d7:true,d3:true,d1:true,day:true,sent3:true,overdue:true,digest:true}};}
+function defaultSettings(){return {theme:'light', digestTime:'09:00', tg:{yulia:'@yulia', masha:'@masha', token:'', yuliaChat:'', mashaChat:''}, notif:{hot:true,overdue:true,waiting:true}};}
 function normalizeState(s){
   if(!(s&&s.projects)) s={projects:JSON.parse(JSON.stringify(SEED)), memes:[]};
   if(!s.memes) s.memes=[];
@@ -611,7 +615,7 @@ async function addMemes(files){
   if(dropped) cloudToast('⚠ Хранилище заполнено — часть мемов не влезла');
   renderSettings(); renderMeme();
 }
-function applyTheme(){ document.body.classList.toggle('dark', state.settings.theme==='dark'); }
+function applyTheme(){ document.body.classList.remove('dark'); }  // тёмная тема отключена
 function refreshAll(){ applyTheme(); renderAll(); if(currentView==='settings') renderSettings(); renderMeme(); }
 
 /* ===== Общая база (Supabase) — живая синхронизация между Юлей и Машей ===== */
@@ -628,12 +632,21 @@ async function cloudInit(){
     else { await cloudPushNow(); }
     cloud.channel('bybank-row').on('postgres_changes',
       {event:'*',schema:'public',table:'bybank',filter:'id=eq.1'},
-      p=>{ if(!p.new || (p.new.updated_at||'')===myLastStamp) return;
-        myLastStamp=p.new.updated_at||'';
-        // Если данные по факту не изменились — не трогаем экран (чтобы не «слетало»)
-        if(JSON.stringify(p.new.data||{})===JSON.stringify(state)) return;
-        state=normalizeState(p.new.data);
-        refreshAll(); }
+      async p=>{
+        // Наше же изменение — игнорируем
+        if(p.new && (p.new.updated_at||'')===myLastStamp) return;
+        // Уведомление может прийти ОБРЕЗАННЫМ (тяжёлые мемы > лимита), поэтому
+        // не верим payload'у, а сами дозапрашиваем полную строку из базы
+        let data;
+        try{ const r=await cloud.from('bybank').select('data,updated_at').eq('id',1).maybeSingle(); if(r.error) return; data=r.data; }
+        catch(e){ return; }
+        if(!data || !data.data || !data.data.projects) return;        // пусто/битое — не трогаем экран
+        if((data.updated_at||'')===myLastStamp) return;                // уже актуально
+        myLastStamp=data.updated_at||'';
+        if(JSON.stringify(data.data)===JSON.stringify(state)) return;   // ничего не поменялось
+        state=normalizeState(data.data);
+        refreshAll();
+      }
     ).subscribe();
     return true;
   }catch(e){ console.warn('Supabase:', e.message||e); return false; }
@@ -655,6 +668,13 @@ function cloudToast(msg){
 /* ================= HELPERS ================= */
 const MS=86400000;
 const days = end => Math.round((new Date(end)-TODAY)/MS);
+// --- «Горящие» оплаты с учётом выходных (оплата идёт через бухгалтера, на выходных не проходит) ---
+const LEAD_BIZ=2;                                  // за сколько РАБОЧИХ дней предупреждать
+function isoToLocal(iso){ const [y,m,d]=iso.split('-').map(Number); return new Date(y,m-1,d); }
+function payDeadline(iso){ const d=isoToLocal(iso); const wd=d.getDay(); if(wd===6)d.setDate(d.getDate()-1); else if(wd===0)d.setDate(d.getDate()-2); return d; } // сб/вс → пятница
+function minusBiz(dt,n){ const d=new Date(dt); let left=n; while(left>0){ d.setDate(d.getDate()-1); const wd=d.getDay(); if(wd!==0&&wd!==6)left--; } return d; }
+function hotStart(iso){ return minusBiz(payDeadline(iso),LEAD_BIZ); }                 // первый день пинга
+function isHotToday(iso){ return TODAY>=hotStart(iso) && TODAY<=payDeadline(iso); }   // горит ли сегодня
 function fmt(end){const d=new Date(end);return String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+String(d.getFullYear()).slice(2);}
 function money(n){return n? n.toLocaleString('ru-RU')+' ₽':'—';}
 function plural(n,a,b,c){const m=n%10,h=n%100;return m===1&&h!==11?a:(m>=2&&m<=4&&(h<10||h>=20)?b:c);}
@@ -959,59 +979,53 @@ function notifPreview(){
     if(s.status==='paused'||s.status==='closed'||!s.end) return;
     const d=days(s.end), who=men(p.owner);
     if(st.notif.overdue && d<0) out.push(line('⚠ Просрочено',CB.overdue, `${s.svc} — ${p.name} · ${who} · оплата была ${fmt(s.end)}`));
-    else if(st.notif.day && d===0) out.push(line('🔔 Сегодня',['var(--pink-soft)','var(--pink-ink)'], `${s.svc} — ${p.name} · ${who}`));
-    else if(st.notif.d1 && d===1) out.push(line('📅 Завтра',CB.soon, `${s.svc} — ${p.name} · ${who}`));
-    else if(st.notif.d3 && d===3) out.push(line('📅 Через 3 дня',CB.soon, `${s.svc} — ${p.name} · ${who}`));
-    else if(st.notif.d7 && d===7) out.push(line('📅 Через 7 дней',CB.soon, `${s.svc} — ${p.name} · ${who}`));
-    if(st.notif.sent3 && s.status==='waiting') out.push(line('📨 Ждём оплату',['var(--sky-soft)','var(--sky-ink)'], `${s.svc} — ${p.name} · ${who} · платёжка отправлена`));
+    else if(st.notif.hot && d>=0 && isHotToday(s.end)) out.push(line('🔥 Горит',CB.soon, `${s.svc} — ${p.name} · ${who} · оплатить до ${fmt(payDeadline(s.end))}`));
+    if(st.notif.waiting && s.status==='waiting') out.push(line('📨 Ждём оплату',['var(--sky-soft)','var(--sky-ink)'], `${s.svc} — ${p.name} · ${who} · платёжка отправлена`));
   }));
   return out;
 }
 function renderSettings(){
   const st=state.settings;
-  const toggles=[['d7','За 7 дней до оплаты'],['d3','За 3 дня'],['d1','За 1 день'],['day','В день оплаты'],['sent3','Платёжка отправлена, ждём оплату'],['overdue','Просрочка'],['digest','Утренний дайджест']];
+  const toggles=[['hot','🔥 Горящие оплаты (за 2 раб. дня, с учётом выходных)'],['overdue','⚠ Просрочка'],['waiting','📨 Ждём оплату от клиента']];
   const prev=notifPreview();
   document.getElementById('setWrap').innerHTML=`
     <div class="panel set-card">
-      <div class="set-title">📮 Telegram-уведомления</div>
-      <div class="set-hint">Каждой приходят свои уведомления в личку. Токен бота подключим в боевой версии.</div>
-      <div class="set-row"><span class="lbl">Токен бота</span><input class="set-in" id="tgToken" type="password" placeholder="вставь токен" value="${st.tg.token||''}"></div>
-      <div class="set-row"><span class="lbl">Утренний дайджест</span><input class="set-in" type="time" id="setDigest" value="${st.digestTime}"></div>
-      <div class="set-row"><span class="lbl">Юля</span><span style="display:flex;gap:6px"><input class="set-in" id="tgYulia" style="width:80px" value="${st.tg.yulia}"><input class="set-in" id="tgYuliaChat" style="width:110px" placeholder="chat_id" value="${st.tg.yuliaChat||''}"></span></div>
-      <div class="set-row"><span class="lbl">Маша</span><span style="display:flex;gap:6px"><input class="set-in" id="tgMasha" style="width:80px" value="${st.tg.masha}"><input class="set-in" id="tgMashaChat" style="width:110px" placeholder="chat_id" value="${st.tg.mashaChat||''}"></span></div>
-      <div class="set-btns">
-        <button class="set-btn" id="tgDetect">🔎 Определить chat_id</button>
-        <button class="set-btn" id="tgTest">📨 Тест</button>
-        <button class="set-btn" id="tgSendNow">🚀 Отправить напоминания</button>
-      </div>
-      <div id="tgLog" class="set-hint" style="margin-top:10px"></div>
-      <div class="set-hint" style="margin-top:4px">🔒 Токен хранится только в этом браузере. Авто-отправка в 09:00 требует отдельного сервера — сделаем позже; сейчас шлёт по кнопке, пока страница открыта.</div>
+      <div class="set-title">📮 Telegram-бот</div>
+      <div class="set-hint">Бот сам пишет в ваш общий чат каждое утро в 09:00 (МСК) — только когда что-то горит или просрочено. Работает на сервере, даже когда сайт закрыт. Переподключать ничего не нужно.</div>
+      <div class="set-sub">Ваши ники в Telegram</div>
+      <div class="set-hint" style="margin-top:-2px">Чтобы бот тегал вас лично (@ник). Только ники — токены сюда не вставляем.</div>
+      <div class="set-row"><span class="lbl">Юля</span><input class="set-in" id="tgYulia" style="width:150px" placeholder="@ник" value="${st.tg.yulia||''}"></div>
+      <div class="set-row"><span class="lbl">Маша</span><input class="set-in" id="tgMasha" style="width:150px" placeholder="@ник" value="${st.tg.masha||''}"></div>
       <div class="set-sub">Что присылать</div>
       ${toggles.map(([k,l])=>`<div class="set-row"><span class="lbl">${l}</span><input type="checkbox" data-notif="${k}" ${st.notif[k]?'checked':''}></div>`).join('')}
+      <div class="set-sub">Как поправить бота</div>
+      <div class="set-hint">Заходишь на <b>github.com</b> → репозиторий <b>paytracker</b>:<br>
+        • <b>Время отправки</b> (сейчас 09:00 МСК): файл <b>.github/workflows/daily-digest.yml</b>, строка <b>cron</b>.<br>
+        • <b>Чат и токен бота</b>: <b>Settings → Secrets and variables → Actions</b> (CHAT_ID, BOT_TOKEN).<br>
+        • <b>Тексты и логика</b>: файл <b>bot/send-digest.js</b>.<br>
+        Не уверена — напиши мне, помогу. 🙌</div>
     </div>
 
-    <div class="panel set-card">
-      <div class="set-title">👀 Предпросмотр на сегодня</div>
-      <div class="set-hint">Что бот отправит ${todayStr()} при текущих настройках.</div>
-      ${prev.length? prev.join('') : '<div class="dd-empty">Сегодня уведомлений нет 🎉</div>'}
-    </div>
-
-    <div class="panel set-card">
-      <div class="set-title">😹 Мемы</div>
-      ${state.memes.length? `<div class="meme-count">Мемов: ${state.memes.length}</div><div class="meme-grid">${state.memes.map((src,i)=>`<div class="meme-thumb"><img src="${src}"><button data-memedel="${i}">✕</button></div>`).join('')}</div>` : '<div class="dd-empty" style="padding-bottom:12px">Пока пусто</div>'}
-      <div class="set-btns"><button class="set-btn" id="setMemeUp">＋ Загрузить мемы</button></div>
-      <input type="file" id="setMemeFile" accept="image/*" multiple hidden>
-    </div>
-
-    <div class="panel set-card">
-      <div class="set-title">🎨 Оформление</div>
-      <div class="set-hint">Тёмная тема — приятнее вечером.</div>
-      <div class="chips" style="display:inline-flex" id="themeChips">
-        <button data-theme="light" class="${st.theme==='light'?'on':''}">☀️ Светлая</button>
-        <button data-theme="dark" class="${st.theme==='dark'?'on':''}">🌙 Тёмная</button>
+    <div class="set-col">
+      <div class="panel set-card">
+        <div class="set-title">👀 Предпросмотр на сегодня</div>
+        <div class="set-hint">Что бот отправит ${todayStr()} при текущих настройках.</div>
+        ${(TODAY.getDay()===0||TODAY.getDay()===6)
+          ? '<div class="dd-empty">Сегодня выходной — бот не пишет 🌴</div>'
+          : (prev.length? prev.join('') : '<div class="dd-empty">Сегодня напоминаний нет 🎉</div>')}
       </div>
-      <div class="set-title" style="margin-top:24px">💾 Данные</div>
-      <div class="set-hint">Всё хранится в браузере. Сделай бэкап или перенеси на другой компьютер.</div>
+
+      <div class="panel set-card">
+        <div class="set-title">😹 Мемы</div>
+        ${state.memes.length? `<div class="meme-count">Мемов: ${state.memes.length}</div><div class="meme-grid">${state.memes.map((src,i)=>`<div class="meme-thumb"><img src="${src}"><button data-memedel="${i}">✕</button></div>`).join('')}</div>` : '<div class="dd-empty" style="padding-bottom:12px">Пока пусто</div>'}
+        <div class="set-btns"><button class="set-btn" id="setMemeUp">＋ Загрузить мемы</button></div>
+        <input type="file" id="setMemeFile" accept="image/*" multiple hidden>
+      </div>
+    </div>
+
+    <div class="panel set-card set-wide">
+      <div class="set-title">💾 Данные</div>
+      <div class="set-hint">Всё хранится в браузере и в общей базе. Сделай бэкап или перенеси на другой компьютер.</div>
       <div class="set-btns">
         <button class="set-btn" id="setExport">⬇ Экспорт</button>
         <button class="set-btn" id="setImport">⬆ Импорт</button>
@@ -1020,17 +1034,9 @@ function renderSettings(){
       <input type="file" id="setImportFile" accept="application/json" hidden>
     </div>`;
 
-  document.getElementById('setDigest').onchange=e=>{st.digestTime=e.target.value;save();};
-  document.getElementById('tgToken').onchange=e=>{st.tg.token=e.target.value.trim();save();};
   document.getElementById('tgYulia').onchange=e=>{st.tg.yulia=e.target.value;save();};
   document.getElementById('tgMasha').onchange=e=>{st.tg.masha=e.target.value;save();};
-  document.getElementById('tgYuliaChat').onchange=e=>{st.tg.yuliaChat=e.target.value.trim();save();};
-  document.getElementById('tgMashaChat').onchange=e=>{st.tg.mashaChat=e.target.value.trim();save();};
-  document.getElementById('tgDetect').onclick=tgDetect;
-  document.getElementById('tgTest').onclick=tgTest;
-  document.getElementById('tgSendNow').onclick=tgSendNow;
   document.querySelectorAll('[data-notif]').forEach(c=>c.onchange=()=>{st.notif[c.dataset.notif]=c.checked;save();renderSettings();});
-  document.querySelectorAll('#themeChips button').forEach(b=>b.onclick=()=>{st.theme=b.dataset.theme;save();applyTheme();renderSettings();});
   document.querySelectorAll('[data-memedel]').forEach(b=>b.onclick=()=>{state.memes.splice(+b.dataset.memedel,1);save();renderSettings();renderMeme();});
   document.getElementById('setMemeUp').onclick=()=>document.getElementById('setMemeFile').click();
   document.getElementById('setMemeFile').onchange=e=>{ addMemes(e.target.files); e.target.value=''; };
@@ -1038,53 +1044,6 @@ function renderSettings(){
   document.getElementById('setImport').onclick=()=>document.getElementById('setImportFile').click();
   document.getElementById('setImportFile').onchange=importData;
   document.getElementById('setReset').onclick=()=>{ if(confirm('Сбросить все данные и вернуть демо-набор?')){ localStorage.removeItem(STORE); state=load(); curWho='yulia'; applyTheme(); switchView('home'); renderMeme(); } };
-}
-async function tgCall(method,params){
-  const token=state.settings.tg.token; if(!token) throw new Error('вставь токен бота');
-  const res=await fetch(`https://api.telegram.org/bot${token}/${method}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(params||{})});
-  const j=await res.json(); if(!j.ok) throw new Error(j.description||'ошибка API'); return j.result;
-}
-function notifLines(){
-  const st=state.settings, by={yulia:[],masha:[]};
-  state.projects.filter(p=>!p.archived).forEach(p=>p.subs.forEach(s=>{
-    if(s.status==='paused'||s.status==='closed'||!s.end||!by[p.owner]) return;
-    const d=days(s.end); let m=null;
-    if(st.notif.overdue&&d<0) m=`⚠ Просрочено: ${s.svc} — ${p.name} (было ${fmt(s.end)})`;
-    else if(st.notif.day&&d===0) m=`🔔 Сегодня оплата: ${s.svc} — ${p.name}`;
-    else if(st.notif.d1&&d===1) m=`📅 Завтра: ${s.svc} — ${p.name}`;
-    else if(st.notif.d3&&d===3) m=`📅 Через 3 дня: ${s.svc} — ${p.name}`;
-    else if(st.notif.d7&&d===7) m=`📅 Через 7 дней: ${s.svc} — ${p.name}`;
-    if(m) by[p.owner].push(m);
-    if(st.notif.sent3&&s.status==='waiting') by[p.owner].push(`📨 Ждём оплату: ${s.svc} — ${p.name}`);
-  }));
-  return by;
-}
-async function tgDetect(){
-  const log=document.getElementById('tgLog'); log.textContent='Читаю обновления…';
-  try{
-    const ups=await tgCall('getUpdates',{}); const seen={};
-    ups.forEach(u=>{const c=(u.message||u.channel_post||{}).chat; if(c) seen[c.id]=`${c.first_name||c.title||''} ${c.username?'@'+c.username:''}`.trim();});
-    const list=Object.entries(seen);
-    log.innerHTML = list.length ? ('Скопируй нужный chat_id в поля выше:<br>'+list.map(([id,n])=>`${n||'чат'} → <b>${id}</b>`).join('<br>'))
-      : 'Пусто. Пусть Юля и Маша напишут боту <b>/start</b> в Telegram, потом нажми снова.';
-  }catch(e){ log.textContent='Ошибка: '+e.message; }
-}
-async function tgTest(){
-  const log=document.getElementById('tgLog'); log.textContent='Отправляю тест…';
-  try{ let sent=0;
-    for(const o of ['yulia','masha']){ const chat=state.settings.tg[o+'Chat']; if(!chat) continue;
-      await tgCall('sendMessage',{chat_id:chat,text:`BYbank на связи ✅ Тест для ${NAMES[o]}`}); sent++; }
-    log.textContent = sent ? `Тест отправлен (${sent}) ✅` : 'Заполни chat_id хотя бы у одного человека';
-  }catch(e){ log.textContent='Ошибка: '+e.message; }
-}
-async function tgSendNow(){
-  const log=document.getElementById('tgLog'); log.textContent='Отправляю напоминания…';
-  try{ const by=notifLines(); let sent=0;
-    for(const o of ['yulia','masha']){ const chat=state.settings.tg[o+'Chat']; const lines=by[o];
-      if(!chat||!lines.length) continue;
-      await tgCall('sendMessage',{chat_id:chat,text:`Привет, ${NAMES[o]}! Оплаты на ${todayStr()}:\n\n`+lines.join('\n')}); sent++; }
-    log.textContent = sent ? `Напоминания отправлены (${sent}) ✅` : 'Некому слать: проверь chat_id и что на сегодня есть напоминания';
-  }catch(e){ log.textContent='Ошибка: '+e.message; }
 }
 function exportData(){
   const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
@@ -1158,7 +1117,6 @@ const STATUS_LABEL={active:'✅ Активно',waiting:'⏳ Ждём оплат
 function statusText(s){const b=bucket(s);
   if(b==='overdue')return'⚠ Просрочено';if(b==='soon')return'🟡 Скоро заканчивается';
   return STATUS_LABEL[s.status]||'✅ Активно';}
-const TODAY_ISO='2026-07-01';
 function todayStr(){return fmt(TODAY_ISO);}
 function shiftISO(iso,{months=0,days=0}){const [y,m,d]=iso.split('-').map(Number);const dt=new Date(y,m-1+months,d+days);
   return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;}
@@ -1287,7 +1245,7 @@ function closeDrawer(){document.getElementById('drawer').classList.remove('on');
 /* ================= WIRE ================= */
 function renderAll(){renderChrome();renderTop();renderStats();renderPayList();renderProjList();renderCalendar();if(currentView==='projects')renderProjects();if(currentView==='payments')renderPayments();if(currentView==='calendar')renderCalendarBig();}
 document.getElementById('whoList').addEventListener('click',e=>{
-  const o=e.target.closest('.who-opt'); if(!o)return; curWho=o.dataset.who; selDay='2026-07-01'; renderAll();
+  const o=e.target.closest('.who-opt'); if(!o)return; curWho=o.dataset.who; selDay=TODAY_ISO; renderAll();
 });
 document.body.addEventListener('click',e=>{
   const rowAct=e.target.closest('[data-rowact]');
@@ -1317,7 +1275,7 @@ document.getElementById('seeAllPay').onclick=()=>switchView('payments');
 document.getElementById('paySearch').addEventListener('input',e=>{payFilter.q=e.target.value;renderPayments();renderTop();});
 document.getElementById('calPrevLg').onclick=()=>{calDate=new Date(calDate.getFullYear(),calDate.getMonth()-1,1);renderCalendarBig();};
 document.getElementById('calNextLg').onclick=()=>{calDate=new Date(calDate.getFullYear(),calDate.getMonth()+1,1);renderCalendarBig();};
-document.getElementById('calToday').onclick=()=>{calDate=new Date(2026,6,1);selDay='2026-07-01';renderCalendarBig();renderCalendar();};
+document.getElementById('calToday').onclick=()=>{calDate=new Date(TODAY.getFullYear(),TODAY.getMonth(),1);selDay=TODAY_ISO;renderCalendarBig();renderCalendar();};
 
 // section header icons
 document.getElementById('ic-pay').outerHTML  = icon('wallet',{size:30,circle:'var(--sky-soft)',color:'var(--sky-ink)'});

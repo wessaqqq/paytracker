@@ -24,6 +24,7 @@
   ],
   "memes": [],
   "settings": {
+    "tg": { "yulia": "@ylssdx", "masha": "@goldkesa" },
     "notif": { "d7": true, "d3": true, "d1": true, "day": true, "sent3": true, "overdue": true, "digest": true }
   }
 }
