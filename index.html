@@ -4,6 +4,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>BYbank — DDMA</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='16' fill='%234169dd'/><text x='32' y='46' font-size='40' text-anchor='middle'>🐻</text></svg>">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='16' fill='%234169dd'/><text x='32' y='46' font-size='40' text-anchor='middle'>🐻</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
@@ -311,7 +313,8 @@
   .set-btn:hover{filter:brightness(.97)}
   .set-btn.danger{background:var(--coral-soft);color:var(--coral-ink)}
   .set-btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
-  .meme-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
+  .meme-count{font-size:12.5px;color:var(--ink-soft);font-weight:600;margin-bottom:8px}
+  .meme-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:12px;max-height:210px;overflow-y:auto;padding-right:4px}
   .meme-thumb{position:relative;border-radius:12px;overflow:hidden;aspect-ratio:1;background:var(--bg2)}
   .meme-thumb img{width:100%;height:100%;object-fit:cover}
   .meme-thumb button{position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:7px;border:0;background:rgba(20,20,30,.6);color:#fff;cursor:pointer;font-size:12px;line-height:1}
@@ -441,7 +444,7 @@
         <div class="meme-actions">
           <button class="m-more" id="memeMore">🔀 Ещё мем</button>
           <button class="m-up" id="memeUp">＋ Загрузить</button>
-          <input type="file" id="memeFile" accept="image/*" hidden />
+          <input type="file" id="memeFile" accept="image/*" multiple hidden />
         </div>
       </div>
     </div>
@@ -583,7 +586,32 @@ function normalizeState(s){
   return s;
 }
 function load(){ let s=null; try{ s=JSON.parse(localStorage.getItem(STORE)); }catch(e){} return normalizeState(s); }
-function save(){ localStorage.setItem(STORE, JSON.stringify(state)); cloudPush(); }
+function save(){ try{ localStorage.setItem(STORE, JSON.stringify(state)); }catch(e){ return false; } cloudPush(); return true; }
+// Сжимаем картинку перед сохранением (иначе хранилище переполняется и всё слетает)
+function compressImage(file, max=720, q=0.6){
+  return new Promise((resolve,reject)=>{
+    const r=new FileReader(); r.onerror=reject;
+    r.onload=()=>{ const img=new Image(); img.onerror=reject;
+      img.onload=()=>{ let w=img.width,h=img.height;
+        if(w>h && w>max){ h=Math.round(h*max/w); w=max; }
+        else if(h>=w && h>max){ w=Math.round(w*max/h); h=max; }
+        const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+        cv.getContext('2d').drawImage(img,0,0,w,h);
+        resolve(cv.toDataURL('image/jpeg',q)); };
+      img.src=r.result; };
+    r.readAsDataURL(file);
+  });
+}
+// Добавляем сразу несколько мемов; если хранилище заполнилось — не роняем приложение
+async function addMemes(files){
+  const list=[...files].filter(f=>f && f.type && f.type.indexOf('image/')===0);
+  if(!list.length) return;
+  for(const f of list){ try{ state.memes.push(await compressImage(f)); }catch(e){} }
+  let ok=save(), dropped=false;
+  while(!ok && state.memes.length){ state.memes.pop(); dropped=true; ok=save(); }
+  if(dropped) cloudToast('⚠ Хранилище заполнено — часть мемов не влезла');
+  renderSettings(); renderMeme();
+}
 function applyTheme(){ document.body.classList.toggle('dark', state.settings.theme==='dark'); }
 function refreshAll(){ applyTheme(); renderAll(); if(currentView==='settings') renderSettings(); renderMeme(); }
 
@@ -968,10 +996,10 @@ function renderSettings(){
 
     <div class="panel set-card">
       <div class="set-title">😹 Мемы</div>
-      <div class="set-hint">Загружай — они крутятся на главной в «Мем дня». Только ваши.</div>
-      ${state.memes.length? `<div class="meme-grid">${state.memes.map((src,i)=>`<div class="meme-thumb"><img src="${src}"><button data-memedel="${i}">✕</button></div>`).join('')}</div>` : '<div class="dd-empty" style="padding-bottom:12px">Пока пусто</div>'}
-      <div class="set-btns"><button class="set-btn" id="setMemeUp">＋ Загрузить мем</button></div>
-      <input type="file" id="setMemeFile" accept="image/*" hidden>
+      <div class="set-hint">Загружай — они крутятся на главной в «Мем дня». Можно выбрать сразу несколько. Только ваши.</div>
+      ${state.memes.length? `<div class="meme-count">Мемов: ${state.memes.length}</div><div class="meme-grid">${state.memes.map((src,i)=>`<div class="meme-thumb"><img src="${src}"><button data-memedel="${i}">✕</button></div>`).join('')}</div>` : '<div class="dd-empty" style="padding-bottom:12px">Пока пусто</div>'}
+      <div class="set-btns"><button class="set-btn" id="setMemeUp">＋ Загрузить мемы</button></div>
+      <input type="file" id="setMemeFile" accept="image/*" multiple hidden>
     </div>
 
     <div class="panel set-card">
@@ -1004,7 +1032,7 @@ function renderSettings(){
   document.querySelectorAll('#themeChips button').forEach(b=>b.onclick=()=>{st.theme=b.dataset.theme;save();applyTheme();renderSettings();});
   document.querySelectorAll('[data-memedel]').forEach(b=>b.onclick=()=>{state.memes.splice(+b.dataset.memedel,1);save();renderSettings();renderMeme();});
   document.getElementById('setMemeUp').onclick=()=>document.getElementById('setMemeFile').click();
-  document.getElementById('setMemeFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{state.memes.push(r.result);save();renderSettings();renderMeme();};r.readAsDataURL(f);};
+  document.getElementById('setMemeFile').onchange=e=>{ addMemes(e.target.files); e.target.value=''; };
   document.getElementById('setExport').onclick=exportData;
   document.getElementById('setImport').onclick=()=>document.getElementById('setImportFile').click();
   document.getElementById('setImportFile').onchange=importData;
@@ -1273,9 +1301,8 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer();});
 document.getElementById('memeMore').onclick=()=>{const n=memePool().length;if(!n)return;memeIdx=(memeIdx+1)%n;renderMeme();};
 document.getElementById('memeUp').onclick=()=>document.getElementById('memeFile').click();
 document.getElementById('memeFile').onchange=e=>{
-  const f=e.target.files[0]; if(!f)return; const r=new FileReader();
-  r.onload=()=>{state.memes.push(r.result);save();memeIdx=memePool().length-1;renderMeme();};
-  r.readAsDataURL(f);
+  addMemes(e.target.files).then(()=>{ memeIdx=Math.max(0,memePool().length-1); renderMeme(); });
+  e.target.value='';
 };
 document.getElementById('reset').onclick=()=>{localStorage.removeItem(STORE);state=load();curWho='yulia';currentView='home';switchView('home');renderMeme();};
 document.getElementById('seeAllProj').onclick=()=>switchView('projects');
