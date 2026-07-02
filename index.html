@@ -497,7 +497,6 @@
       </div>
     </div>
 
-    <div class="foot">🔵 BYbank v17 · пароль на вход + готово к хостингу · <a id="reset">сбросить данные</a></div>
   </main>
 </div>
 
@@ -630,8 +629,11 @@ async function cloudInit(){
     cloud.channel('bybank-row').on('postgres_changes',
       {event:'*',schema:'public',table:'bybank',filter:'id=eq.1'},
       p=>{ if(!p.new || (p.new.updated_at||'')===myLastStamp) return;
-        state=normalizeState(p.new.data); myLastStamp=p.new.updated_at||'';
-        refreshAll(); cloudToast('✓ Успешно'); }
+        myLastStamp=p.new.updated_at||'';
+        // Если данные по факту не изменились — не трогаем экран (чтобы не «слетало»)
+        if(JSON.stringify(p.new.data||{})===JSON.stringify(state)) return;
+        state=normalizeState(p.new.data);
+        refreshAll(); }
     ).subscribe();
     return true;
   }catch(e){ console.warn('Supabase:', e.message||e); return false; }
@@ -996,7 +998,6 @@ function renderSettings(){
 
     <div class="panel set-card">
       <div class="set-title">😹 Мемы</div>
-      <div class="set-hint">Загружай — они крутятся на главной в «Мем дня». Можно выбрать сразу несколько. Только ваши.</div>
       ${state.memes.length? `<div class="meme-count">Мемов: ${state.memes.length}</div><div class="meme-grid">${state.memes.map((src,i)=>`<div class="meme-thumb"><img src="${src}"><button data-memedel="${i}">✕</button></div>`).join('')}</div>` : '<div class="dd-empty" style="padding-bottom:12px">Пока пусто</div>'}
       <div class="set-btns"><button class="set-btn" id="setMemeUp">＋ Загрузить мемы</button></div>
       <input type="file" id="setMemeFile" accept="image/*" multiple hidden>
@@ -1304,7 +1305,6 @@ document.getElementById('memeFile').onchange=e=>{
   addMemes(e.target.files).then(()=>{ memeIdx=Math.max(0,memePool().length-1); renderMeme(); });
   e.target.value='';
 };
-document.getElementById('reset').onclick=()=>{localStorage.removeItem(STORE);state=load();curWho='yulia';currentView='home';switchView('home');renderMeme();};
 document.getElementById('seeAllProj').onclick=()=>switchView('projects');
 document.querySelector('.btn-add').onclick=addProject;
 document.querySelectorAll('.add-inline').forEach(b=>b.onclick=addProject);
@@ -1331,7 +1331,7 @@ function startApp(){
   memeIdx=dayIndex();
   renderMeme();
   // подключаем общую базу (если заполнен config.js) — потом перерисовываем свежими данными
-  cloudInit().then(ok=>{ if(ok){ refreshAll(); cloudToast('☁️ Общая база подключена'); } });
+  cloudInit().then(ok=>{ if(ok){ refreshAll(); } });
 }
 // Пароль на вход (задаётся в config.js). Если пароля нет — вход свободный.
 (function bootGate(){
