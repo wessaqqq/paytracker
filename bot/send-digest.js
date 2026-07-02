@@ -63,23 +63,32 @@ function buildDigest(state) {
   return parts.join('\n');
 }
 
-// Берём данные из общей базы Supabase; если она не настроена — из bot/data.json
+// Диагностика источника данных (видна в сообщении, пока отлаживаем)
+let SOURCE = 'data.json';
+let SRCERR = '';
+
+// Берём данные из общей базы Supabase; если не получилось — из bot/data.json
 async function getState() {
-  const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_KEY;
-  if (url && key) {
-    try {
-      const res = await fetch(`${url}/rest/v1/bybank?id=eq.1&select=data`, {
-        headers: { apikey: key, Authorization: `Bearer ${key}` },
-      });
-      const rows = await res.json();
-      if (Array.isArray(rows) && rows[0] && rows[0].data) return rows[0].data;
-      console.warn('Supabase: строка не найдена, беру bot/data.json');
-    } catch (e) {
-      console.warn('Supabase недоступна, беру bot/data.json:', e.message);
-    }
+  let url = process.env.SUPABASE_URL, key = process.env.SUPABASE_KEY;
+  if (!url || !key) { SRCERR = 'нет SUPABASE_URL/KEY в секретах'; return fallback(); }
+  url = url.trim().replace(/\/+$/, '');   // убираем пробелы и хвостовой слэш
+  key = key.trim();
+  try {
+    const res = await fetch(`${url}/rest/v1/bybank?id=eq.1&select=data`, {
+      headers: { apikey: key, Authorization: `Bearer ${key}` },
+    });
+    const body = await res.text();
+    if (!res.ok) { SRCERR = `HTTP ${res.status}: ${body.slice(0, 140)}`; return fallback(); }
+    let rows; try { rows = JSON.parse(body); } catch (e) { SRCERR = 'ответ не JSON: ' + body.slice(0, 140); return fallback(); }
+    if (Array.isArray(rows) && rows[0] && rows[0].data) { SOURCE = 'Supabase'; return rows[0].data; }
+    SRCERR = 'строка id=1 пустая или не найдена (ответ: ' + body.slice(0, 100) + ')';
+    return fallback();
+  } catch (e) {
+    SRCERR = 'сеть/запрос: ' + (e.message || e);
+    return fallback();
   }
-  return JSON.parse(fs.readFileSync(path.join(__dirname, 'data.json'), 'utf8'));
 }
+function fallback() { return JSON.parse(fs.readFileSync(path.join(__dirname, 'data.json'), 'utf8')); }
 
 async function main() {
   if (!TOKEN || !CHAT) {
@@ -88,11 +97,15 @@ async function main() {
   }
   const state = await getState();
 
+  const dbg = SOURCE === 'Supabase'
+    ? '🟢 <i>Источник: общая база (Supabase)</i>\n\n'
+    : `🔴 <i>Источник: запасной файл. База не прочиталась — ${SRCERR}</i>\n\n`;
+
   // Тест-режим (кнопка Run workflow → test = true): шлём проверочное сообщение с вашими никами
   if (process.env.TEST === 'true') {
     const tg = (state.settings && state.settings.tg) || {};
     const nick = o => (tg[o] ? String(tg[o]).replace(/^@?/, '@') : '@' + o);
-    const text = `✅ <b>BYbank — тест бота</b>\n\nБот на связи и умеет тегать вас лично: ${nick('yulia')} ${nick('masha')}\n\nВ будни в 09:00 сюда будут приходить только 🔥 горящие оплаты и ⚠ просрочки. Если тихо — значит всё под контролем.`;
+    const text = dbg + `✅ <b>BYbank — тест бота</b>\n\nБот на связи и умеет тегать вас лично: ${nick('yulia')} ${nick('masha')}\n\nВ будни в 09:00 сюда будут приходить только 🔥 горящие оплаты и ⚠ просрочки. Если тихо — значит всё под контролем.`;
     const r = await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chat_id: CHAT, text, parse_mode: 'HTML', disable_web_page_preview: true }),
@@ -107,9 +120,10 @@ async function main() {
   const wd = today.getUTCDay();
   if (wd === 0 || wd === 6) { console.log('Выходной — напоминания не шлём ✅'); return; }
 
-  const text = buildDigest(state);
+  const digest = buildDigest(state);
 
-  if (!text) { console.log('Тихий день — ничего горящего, сообщение не отправлено ✅'); return; }
+  if (!digest) { console.log('Тихий день — ничего горящего, сообщение не отправлено ✅'); return; }
+  const text = dbg + digest;
 
   const res = await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
     method: 'POST',
