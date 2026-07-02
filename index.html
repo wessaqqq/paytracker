@@ -214,7 +214,13 @@
   .dr-owner-line{display:flex;align-items:center;gap:10px;margin-bottom:18px}
   .dr-owner-line .lab{font-size:13px;color:var(--ink-soft)}
   .mini-av{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:700;font-size:12px}
-  .dr-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:22px}
+  .dr-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+  .svc-openlink{color:var(--blue-ink);text-decoration:none;font-weight:700}
+  .svc-openlink:hover{text-decoration:underline}
+  .svc-open{display:inline-block;margin-top:8px;font-size:12.5px;font-weight:600;color:var(--blue-ink);text-decoration:none}
+  .svc-open:hover{text-decoration:underline}
+  .dr-del-proj{width:100%;margin-bottom:22px;border:1px solid var(--coral-soft);background:transparent;color:var(--coral-ink);cursor:pointer;font-family:inherit;font-size:12.5px;font-weight:600;padding:9px;border-radius:11px;transition:.15s}
+  .dr-del-proj:hover{background:var(--coral-soft)}
   .dr-btn{border:0;cursor:pointer;font-family:inherit;font-weight:650;font-size:13.5px;padding:12px;border-radius:14px;box-shadow:var(--shadow-sm);background:var(--card);color:var(--ink);transition:.15s;display:flex;align-items:center;justify-content:center;gap:8px}
   .dr-btn:hover{transform:translateY(-1px)}
   .dr-btn.pass{background:var(--lav-soft);color:var(--lav-ink)}
@@ -709,6 +715,27 @@ function whenLabel(d){
   if(d<=7) return {t:'Через '+d+' '+plural(d,'день','дня','дней'), c:'soon'};
   return {t:'Через '+d+' '+plural(d,'день','дня','дней'), c:'ok'};
 }
+// Ссылка на сервис: ручная (s.url) или авто-угадывание по названию
+const SVC_LINKS=[
+  [/тильда|tilda/i,'https://tilda.cc'],
+  [/авито|avito/i,'https://www.avito.ru'],
+  [/ройстат|roistat/i,'https://roistat.com'],
+  [/альбато|albato/i,'https://albato.ru'],
+  [/salebot|сейлбот/i,'https://salebot.pro'],
+  [/бизон|bizon/i,'https://bizon365.ru'],
+  [/replain/i,'https://replain.io'],
+  [/unisender|юнисендер/i,'https://www.unisender.com'],
+  [/nethouse/i,'https://nethouse.ru'],
+  [/wazzup|вацап|ваззап/i,'https://wazzup24.com'],
+  [/марквиз|marquiz/i,'https://marquiz.ru'],
+  [/флексби|flexbe/i,'https://flexbe.ru'],
+  [/тайм ?веб|timeweb/i,'https://timeweb.com'],
+  [/рег ?ру|reg\.ru/i,'https://www.reg.ru'],
+  [/wappi|вапи/i,'https://wappi.pro'],
+  [/а5|a5/i,'https://a5.ru'],
+];
+function svcLink(s){ if(s.url) return /^https?:\/\//i.test(s.url)?s.url:'https://'+s.url; for(const [re,u] of SVC_LINKS) if(re.test(s.svc)) return u; return null; }
+function linkHost(u){ try{ return new URL(u).hostname.replace(/^www\./,''); }catch(e){ return 'сайт'; } }
 const svcTone = ['coral','yellow','blue','green','pink','lav'];
 function svcColor(name){
   let h=0; for(const ch of name) h=(h*31+ch.charCodeAt(0))>>>0;
@@ -1051,7 +1078,13 @@ function exportData(){
 }
 function importData(e){
   const f=e.target.files[0]; if(!f)return; const r=new FileReader();
-  r.onload=()=>{ try{ const s=JSON.parse(r.result); if(!s.projects) throw 0; state=s; state.memes=state.memes||[]; state.settings=Object.assign(defaultSettings(),state.settings||{}); save(); applyTheme(); switchView('settings'); renderMeme(); alert('Импортировано ✅'); }catch(err){ alert('Файл не подошёл — нужен payflow-backup.json'); } };
+  r.onload=()=>{ try{ const s=JSON.parse(r.result); if(!s.projects) throw 0;
+    const prev=state;   // сохраняем текущие мемы и настройки (ники), если в файле их нет
+    state=normalizeState(s);
+    if(!(s.memes&&s.memes.length)) state.memes=prev.memes||[];
+    state.settings=Object.assign(defaultSettings(), prev.settings||{}, s.settings||{});
+    save(); applyTheme(); switchView('projects'); renderMeme(); alert('Импортировано ✅');
+  }catch(err){ alert('Файл не подошёл — нужен JSON с проектами.'); } };
   r.readAsText(f);
 }
 
@@ -1158,13 +1191,14 @@ function openDrawer(id){
       <button class="dr-btn pass" id="drPass">→ Передать ${NAMES[OTHER[p.owner]]}</button>
       <button class="dr-btn arch" id="drArch">${p.archived?'♻ Вернуть из архива':'🗂 В архив'}</button>
     </div>
+    <button class="dr-del-proj" id="drDel">🗑 Удалить проект насовсем</button>
     <div class="dr-sec">Заметка</div>
     <textarea class="dr-note" id="drNotes" placeholder="Напр.: клиент оплатит после 10-го · не беспокоить до пн · ждёт счёт…">${p.notes||''}</textarea>
     <div class="dr-sec" style="margin-top:16px">Сервисы · ${p.subs.length}</div>
-    ${p.subs.map((s,i)=>{const [bg,ink]=svcColor(s.svc);const pa=primaryAction(s);
+    ${p.subs.map((s,i)=>{const [bg,ink]=svcColor(s.svc);const pa=primaryAction(s);const lk=svcLink(s);
       const opts=[['active','Активна'],['waiting','Ждём оплату клиента'],['client_paid','Клиент оплатил'],['paused','На паузе'],['closed','Закрыто']];
       return `<div class="dr-svc">
-        <div class="r1"><span class="nm"><span class="svc-badge" style="width:26px;height:26px;font-size:12px;background:${bg};color:${ink};display:inline-grid;vertical-align:middle;margin-right:8px">${s.svc[0]}</span>${s.svc}</span>
+        <div class="r1"><span class="nm"><span class="svc-badge" style="width:26px;height:26px;font-size:12px;background:${bg};color:${ink};display:inline-grid;vertical-align:middle;margin-right:8px">${s.svc[0]}</span>${lk?`<a href="${lk}" target="_blank" rel="noopener" class="svc-openlink" title="Открыть ${lk}">${s.svc} ↗</a>`:s.svc}</span>
           <button class="svc-del" data-act="del" data-i="${i}" title="Удалить сервис">✕</button></div>
         <div style="margin-bottom:2px"><span class="nextchip ${nextAction(s).tone}">${statusText(s)}${s.end?' · до '+fmt(s.end):''}${s.amt?' · '+money(s.amt):''}</span></div>
         <div class="svc-controls">
@@ -1172,6 +1206,8 @@ function openDrawer(id){
           <input class="svc-in svc-dt" type="date" data-dt="${i}" value="${s.end||''}">
           <span class="amt-edit"><input class="amt-in" data-i="${i}" type="number" inputmode="numeric" value="${s.amt??''}" placeholder="0"> ₽</span>
         </div>
+        <input class="svc-in svc-url" data-url="${i}" placeholder="🔗 ссылка на сервис (по желанию)" value="${s.url||''}" style="width:100%;margin-top:8px">
+        ${lk?`<a href="${lk}" target="_blank" rel="noopener" class="svc-open">↗ Открыть ${linkHost(lk)}</a>`:''}
         ${pa?`<button class="svc-primary" data-act="${pa.act}" data-i="${i}" style="background:${pa.bg}">${pa.label}</button>`:''}
         <div class="svc-second">
           <button data-act="extend" data-i="${i}">📅 +30 дней</button>
@@ -1202,6 +1238,13 @@ function openDrawer(id){
   document.getElementById('drClose').onclick=closeDrawer;
   document.getElementById('drPass').onclick=()=>{p.owner=OTHER[p.owner];logEvent(p,'','↔ Передан ' + NAMES[p.owner]);save();renderAll();openDrawer(id);};
   document.getElementById('drArch').onclick=()=>{p.archived=!p.archived;save();closeDrawer();renderAll();};
+  document.getElementById('drDel').onclick=()=>{
+    if(confirm(`Удалить проект «${p.name}» и все его сервисы? Это навсегда — отменить нельзя.`)){
+      const idx=state.projects.findIndex(x=>x.id===p.id);
+      if(idx>-1) state.projects.splice(idx,1);
+      save(); closeDrawer(); renderAll();
+    }
+  };
   const dr=document.getElementById('drawer');
   const notesEl=document.getElementById('drNotes'); if(notesEl) notesEl.addEventListener('change',()=>{p.notes=notesEl.value;save();});
   dr.querySelectorAll('.amt-in').forEach(inp=>inp.addEventListener('change',()=>{
@@ -1219,6 +1262,11 @@ function openDrawer(id){
     const chip=inp.closest('.dr-svc').querySelector('.nextchip');
     const s=p.subs[+inp.dataset.dt];
     if(chip) chip.outerHTML=`<span class="nextchip ${nextAction(s).tone}">${statusText(s)}${s.end?' · до '+fmt(s.end):''}${s.amt?' · '+money(s.amt):''}</span>`;
+  }));
+  dr.querySelectorAll('.svc-url').forEach(inp=>inp.addEventListener('change',()=>{
+    const v=inp.value.trim(); const s=p.subs[+inp.dataset.url];
+    if(v) s.url=v; else delete s.url;
+    save(); openDrawer(id);   // перерисуем, чтобы появилась/обновилась кликабельная ссылка
   }));
   dr.querySelectorAll('button[data-act]').forEach(b=>b.addEventListener('click',()=>{
     applySubAction(p,+b.dataset.i,b.dataset.act); save(); renderAll(); openDrawer(id);

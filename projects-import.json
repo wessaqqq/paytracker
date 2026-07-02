@@ -1,0 +1,149 @@
+{
+  "projects": [
+    {
+      "id": "dmp", "name": "DMP", "owner": "yulia", "archived": false,
+      "notes": "Avito.a5client — создаётся автоматически, приходит @goldkesa в ТГ. Авито Pro — контролит Саша @BrightSasha. Salebot — логин ddma-dmp@yandex.ru.",
+      "subs": [
+        {"svc": "Ройстат", "amt": null, "end": "2026-07-29", "status": "active", "history": []},
+        {"svc": "Тильда", "amt": null, "end": "2026-07-31", "status": "active", "history": []},
+        {"svc": "Avito.a5client", "amt": null, "end": "2027-01-03", "status": "active", "history": []},
+        {"svc": "Salebot", "amt": null, "end": "2026-07-12", "status": "active", "history": []},
+        {"svc": "Бизон", "amt": null, "end": "2026-07-13", "status": "active", "history": []},
+        {"svc": "Авито Pro", "amt": null, "end": null, "status": "active", "history": []},
+        {"svc": "Albato", "amt": null, "end": null, "status": "paused", "history": []}
+      ]
+    },
+    {
+      "id": "planeta", "name": "Планета септиков", "owner": "yulia", "archived": false, "notes": "",
+      "subs": [
+        {"svc": "А5клиент", "amt": null, "end": null, "status": "active", "history": []},
+        {"svc": "Ройстат", "amt": null, "end": null, "status": "active", "history": []}
+      ]
+    },
+    {
+      "id": "massimo", "name": "Massimo Tinelli", "owner": "yulia", "archived": false, "notes": "",
+      "subs": [
+        {"svc": "Ройстат", "amt": null, "end": "2026-07-06", "status": "active", "history": []}
+      ]
+    },
+    {
+      "id": "metriks", "name": "Metriks", "owner": "yulia", "archived": false, "notes": "",
+      "subs": [
+        {"svc": "Ройстат", "amt": null, "end": "2026-07-28", "status": "active", "history": []}
+      ]
+    },
+    {
+      "id": "trinity", "name": "Тринити", "owner": "yulia", "archived": false, "notes": "",
+      "subs": [
+        {"svc": "Хостинг", "amt": null, "end": "2027-06-22", "status": "active", "history": []},
+        {"svc": "Домен trinitymedical.ru", "amt": null, "end": "2027-06-17", "status": "active", "history": []}
+      ]
+    },
+    {
+      "id": "novoemesto", "name": "Новое место", "owner": "yulia", "archived": false,
+      "notes": "Флексби — писать @alfrolov92.",
+      "subs": [
+        {"svc": "Тайм веб", "amt": null, "end": "2026-10-08", "status": "active", "history": []},
+        {"svc": "Ройстат Франшиза", "amt": null, "end": "2026-07-24", "status": "active", "history": []},
+        {"svc": "Ройстат", "amt": null, "end": "2026-07-12", "status": "active", "history": []},
+        {"svc": "Флексби", "amt": null, "end": null, "status": "active", "history": []},
+        {"svc": "Авито", "amt": null, "end": null, "status": "paused", "history": []},
+        {"svc": "Марквиз", "amt": null, "end": null, "status": "paused", "history": []}
+      ]
+    },
+    {
+      "id": "indlab", "name": "INDLAB (ВЕСЫ)", "owner": "yulia", "archived": false,
+      "notes": "Replain: itc-sartorius.ru (базовая), pharm-servis.ru (профессиональная), vesexpert.ru (базовая), vlagomer.ru (базовая). nethouse — тариф «магазин».",
+      "subs": [
+        {"svc": "Replain itc-sartorius.ru", "amt": null, "end": "2026-10-08", "status": "active", "history": []},
+        {"svc": "Replain pharm-servis.ru", "amt": null, "end": "2027-03-30", "status": "active", "history": []},
+        {"svc": "Replain vesexpert.ru", "amt": null, "end": "2026-10-16", "status": "active", "history": []},
+        {"svc": "Replain vlagomer.ru", "amt": null, "end": "2026-10-16", "status": "active", "history": []},
+        {"svc": "Ройстат", "amt": null, "end": "2026-07-09", "status": "active", "history": []},
+        {"svc": "nethouse", "amt": null, "end": "2027-02-17", "status": "active", "history": []},
+        {"svc": "Хостинг Рег ру", "amt": null, "end": "2028-09-24", "status": "active", "history": []},
+        {"svc": "Unisender sartorius", "amt": null, "end": null, "status": "paused", "history": []},
+        {"svc": "Unisender pharm-service", "amt": null, "end": null, "status": "paused", "history": []},
+        {"svc": "Альбато", "amt": null, "end": null, "status": "active", "history": []}
+      ]
+    },
+    {
+      "id": "otdo", "name": "OT.DO", "owner": "yulia", "archived": false, "notes": "Тильда — тариф бизнес.",
+      "subs": [
+        {"svc": "Тильда", "amt": null, "end": "2027-04-06", "status": "active", "history": []}
+      ]
+    },
+    {
+      "id": "kovrolin", "name": "Ковролин Ру", "owner": "yulia", "archived": false, "notes": "",
+      "subs": [
+        {"svc": "Ройстат", "amt": null, "end": "2026-07-29", "status": "active", "history": []},
+        {"svc": "Тильда", "amt": null, "end": "2027-02-16", "status": "active", "history": []},
+        {"svc": "Авито", "amt": null, "end": null, "status": "paused", "history": []}
+      ]
+    },
+    {
+      "id": "inlab", "name": "Инлаб", "owner": "yulia", "archived": false, "notes": "",
+      "subs": [
+        {"svc": "Авито ООО", "amt": null, "end": "2026-08-01", "status": "active", "history": []},
+        {"svc": "Авито частник", "amt": null, "end": "2026-07-06", "status": "active", "history": []},
+        {"svc": "Ройстат", "amt": null, "end": "2026-07-14", "status": "active", "history": []},
+        {"svc": "А5", "amt": null, "end": "2026-07-07", "status": "active", "history": []}
+      ]
+    },
+    {
+      "id": "smartxstroy", "name": "Smart X Stroy", "owner": "yulia", "archived": false, "notes": "",
+      "subs": [
+        {"svc": "Тильда", "amt": null, "end": "2027-06-30", "status": "active", "history": []},
+        {"svc": "Авито", "amt": null, "end": null, "status": "active", "history": []}
+      ]
+    },
+    {
+      "id": "smartx", "name": "SMART-X", "owner": "yulia", "archived": false,
+      "notes": "A5client — оплата через тех. поддержку в ТГ. Рег.ру — не используем.",
+      "subs": [
+        {"svc": "Тильда", "amt": null, "end": "2026-07-18", "status": "active", "history": []},
+        {"svc": "Ройстат", "amt": null, "end": "2027-06-30", "status": "active", "history": []},
+        {"svc": "A5client", "amt": null, "end": null, "status": "active", "history": []}
+      ]
+    },
+    {
+      "id": "refresh", "name": "Refresh Clinic", "owner": "yulia", "archived": false,
+      "notes": "СМС ру — плата списывается 25 числа любого месяца.",
+      "subs": [
+        {"svc": "Ройстат", "amt": null, "end": "2026-07-24", "status": "active", "history": []},
+        {"svc": "Тильда", "amt": null, "end": "2026-11-22", "status": "active", "history": []},
+        {"svc": "СМС ру", "amt": null, "end": "2026-07-25", "status": "active", "history": []}
+      ]
+    },
+    {
+      "id": "evexperts", "name": "EvExperts", "owner": "yulia", "archived": false,
+      "notes": "Ройстат — оплачивают сами (не отслеживаем). Wazzup — автопродление, но раз в 1 число месяца заходить проверять.",
+      "subs": [
+        {"svc": "Альбато", "amt": null, "end": "2026-07-03", "status": "active", "history": []},
+        {"svc": "Тильда", "amt": null, "end": "2026-07-05", "status": "active", "history": []},
+        {"svc": "Wazzup", "amt": null, "end": null, "status": "active", "history": []}
+      ]
+    },
+    {
+      "id": "marsel", "name": "Марсель", "owner": "yulia", "archived": false, "notes": "",
+      "subs": [
+        {"svc": "Ройстат", "amt": null, "end": "2026-07-02", "status": "active", "history": []},
+        {"svc": "А5", "amt": null, "end": "2026-07-14", "status": "active", "history": []},
+        {"svc": "Тильда", "amt": null, "end": "2026-07-14", "status": "active", "history": []},
+        {"svc": "Подписка авито Константин", "amt": null, "end": "2026-07-13", "status": "active", "history": []},
+        {"svc": "Подписка авито Сергей", "amt": null, "end": "2026-07-09", "status": "active", "history": []},
+        {"svc": "Подписка авито Сергей (2)", "amt": null, "end": null, "status": "paused", "history": []},
+        {"svc": "Подписка авито СК Марсель (2)", "amt": null, "end": null, "status": "paused", "history": []},
+        {"svc": "Подписка авито ГарантСтрой", "amt": null, "end": null, "status": "paused", "history": []},
+        {"svc": "Подписка авито Михаил", "amt": null, "end": null, "status": "paused", "history": []}
+      ]
+    },
+    {
+      "id": "fortex", "name": "Fortex", "owner": "yulia", "archived": false, "notes": "",
+      "subs": [
+        {"svc": "Ройстат", "amt": null, "end": "2026-07-17", "status": "active", "history": []},
+        {"svc": "Тильда", "amt": null, "end": "2026-07-13", "status": "active", "history": []}
+      ]
+    }
+  ]
+}
