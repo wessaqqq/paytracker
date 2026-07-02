@@ -3,7 +3,12 @@ name: Daily digest
 on:
   schedule:
     - cron: '0 6 * * *'      # 06:00 UTC = 09:00 МСК, каждый день
-  workflow_dispatch: {}       # кнопка ручного запуска на вкладке Actions
+  workflow_dispatch:          # кнопка ручного запуска на вкладке Actions
+    inputs:
+      test:
+        description: 'Тестовое сообщение (проверить бота и ники)'
+        type: boolean
+        default: false
 
 jobs:
   send:
@@ -18,3 +23,6 @@ jobs:
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          TEST: ${{ github.event.inputs.test }}
