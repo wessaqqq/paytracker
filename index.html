@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>PayFlow — DDMA</title>
+<title>BYbank — DDMA</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
@@ -327,6 +327,18 @@
     --shadow:0 14px 34px -18px rgba(0,0,0,.6); --shadow-sm:0 6px 18px -10px rgba(0,0,0,.5);
   }
   body.dark{background:radial-gradient(1100px 620px at 8% -10%,#1a1e2b,transparent 60%),radial-gradient(900px 520px at 102% 0%,#161a26,transparent 58%),var(--bg)}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:11px 20px;border-radius:13px;font-size:13.5px;font-weight:600;box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:.25s;z-index:100}
+  .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+  .gate{position:fixed;inset:0;z-index:200;background:var(--bg);display:flex;align-items:center;justify-content:center}
+  .gate[hidden]{display:none}
+  .gate-card{background:var(--card);border-radius:22px;box-shadow:var(--shadow);padding:34px 32px;width:320px;max-width:88vw;text-align:center}
+  .gate-logo{font-size:40px}
+  .gate-title{font-family:var(--font-head);font-size:24px;font-weight:800;margin-top:6px}
+  .gate-sub{color:var(--ink-soft);font-size:14px;margin:6px 0 18px}
+  .gate-in{width:100%;border:1px solid var(--line);background:var(--bg2);border-radius:12px;padding:12px 14px;font-family:inherit;font-size:15px;color:var(--ink);text-align:center}
+  .gate-in:focus{outline:2px solid var(--blue);outline-offset:-1px}
+  .gate-btn{width:100%;margin-top:12px;border:0;cursor:pointer;font-family:inherit;font-weight:700;font-size:15px;padding:12px;border-radius:12px;color:#fff;background:linear-gradient(135deg,#4169dd,#293681)}
+  .gate-err{color:var(--coral-ink);font-size:13px;font-weight:600;margin-top:10px;min-height:18px}
 
   @media(max-width:1080px){
     .stats{grid-template-columns:1fr 1fr}
@@ -347,6 +359,16 @@
 </style>
 </head>
 <body>
+<div id="gate" class="gate" hidden>
+  <div class="gate-card">
+    <div class="gate-logo">🐻</div>
+    <div class="gate-title">BYbank</div>
+    <div class="gate-sub">Введите пароль для входа</div>
+    <input id="gatePass" class="gate-in" type="password" placeholder="Пароль">
+    <button id="gateBtn" class="gate-btn">Войти</button>
+    <div id="gateErr" class="gate-err"></div>
+  </div>
+</div>
 <div class="app">
   <aside class="side">
     <div class="brand" id="brand"></div>
@@ -472,7 +494,7 @@
       </div>
     </div>
 
-    <div class="foot">🔵 v14 · живая отправка в Telegram (по кнопке) · <a id="reset">сбросить данные</a></div>
+    <div class="foot">🔵 BYbank v17 · пароль на вход + готово к хостингу · <a id="reset">сбросить данные</a></div>
   </main>
 </div>
 
@@ -480,6 +502,9 @@
 <div class="backdrop" id="backdrop"></div>
 <aside class="drawer" id="drawer"></aside>
 
+<!-- Общая база: библиотека Supabase + твои ключи из config.js -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
 <script>
 /* ================= ICONS (reference-style: cream circle + soft shape) ================= */
 const SHAPES = {
@@ -525,76 +550,15 @@ const NAMES = {yulia:'Юля', masha:'Маша'};
 const OTHER = {yulia:'masha', masha:'yulia'};
 const STORE = 'payflow.state.v3';
 
+// Демо-данные (обезличенные) — показываются только если общая база пустая.
+// Реальные проекты хранятся в защищённой базе Supabase, а не здесь.
 const SEED = [
-  {id:'delay', name:'Делай ровно', owner:'yulia', archived:true, subs:[
-    {svc:'Авито ООО', amt:null, end:'2026-04-05', status:'paused'},
+  {id:'demo1', name:'Проект 1', owner:'yulia', archived:false, subs:[
+    {svc:'Сервис A', amt:null, end:'2026-08-03', status:'active'},
+    {svc:'Сервис B', amt:null, end:'2026-08-14', status:'active'},
   ]},
-  {id:'evex', name:'EvExperts', owner:'yulia', archived:false, subs:[
-    {svc:'Альбато', amt:null, end:'2026-07-03', status:'active'},
-    {svc:'Тильда', amt:null, end:'2026-07-05', status:'active'},
-    {svc:'Ройстат', amt:null, end:null, status:'paused'},
-  ]},
-  {id:'refresh', name:'Refresh Clinic', owner:'yulia', archived:false, subs:[
-    {svc:'СМС ру', amt:null, end:'2026-06-25', status:'active'},
-    {svc:'Ройстат', amt:null, end:'2026-07-24', status:'active'},
-    {svc:'Тильда', amt:null, end:'2026-11-22', status:'active'},
-  ]},
-  {id:'marsel', name:'СК Марсель', owner:'yulia', archived:false, subs:[
-    {svc:'Ройстат', amt:null, end:'2026-07-02', status:'active'},
-    {svc:'A5', amt:null, end:'2026-07-14', status:'active'},
-    {svc:'Тильда', amt:null, end:'2026-07-14', status:'active'},
-    {svc:'Подписка Сергей', amt:null, end:'2026-07-09', status:'waiting'},
-  ]},
-  {id:'inlab', name:'Инлаб', owner:'yulia', archived:false, subs:[
-    {svc:'Авито ООО', amt:null, end:'2026-07-01', status:'active'},
-    {svc:'Авито частник', amt:null, end:'2026-07-06', status:'active'},
-    {svc:'Ройстат', amt:null, end:'2026-07-14', status:'active'},
-    {svc:'A5', amt:null, end:'2026-07-07', status:'client_paid'},
-  ]},
-  {id:'smartx_stroy', name:'SmartX Строй', owner:'yulia', archived:false, group:'smartx', note:'дома', subs:[
-    {svc:'Тильда', amt:null, end:'2026-06-30', status:'active'},
-    {svc:'Авито', amt:null, end:null, status:'paused'},
-  ]},
-  {id:'smartx', name:'SmartX', owner:'yulia', archived:false, group:'smartx', note:'септики', subs:[
-    {svc:'Tilda', amt:null, end:'2026-07-18', status:'active'},
-    {svc:'Roistat', amt:null, end:'2026-06-21', status:'active'},
-    {svc:'A5client', amt:null, end:null, status:'active'},
-  ]},
-  {id:'fortex', name:'Fortex', owner:'yulia', archived:false, subs:[
-    {svc:'Ройстат', amt:null, end:'2026-07-17', status:'active'},
-    {svc:'Тильда', amt:null, end:'2026-07-13', status:'active'},
-  ]},
-  {id:'voda', name:'Вода', owner:'yulia', archived:false, subs:[
-    {svc:'Ройстат', amt:null, end:'2026-07-20', status:'active'},
-  ]},
-  {id:'dmp', name:'DMP', owner:'masha', archived:false, subs:[
-    {svc:'Roistat', amt:null, end:'2026-07-29', status:'active'},
-    {svc:'Tilda', amt:null, end:'2026-07-31', status:'active'},
-    {svc:'Salebot', amt:null, end:'2026-07-12', status:'active'},
-    {svc:'Бизон', amt:null, end:'2026-07-13', status:'active'},
-    {svc:'Avito.a5client', amt:null, end:'2027-01-03', status:'active'},
-  ]},
-  {id:'indlab', name:'INDLAB (Весы)', owner:'masha', archived:false, subs:[
-    {svc:'Ройстат', amt:null, end:'2026-07-09', status:'active'},
-    {svc:'Replain itc-sartorius', amt:null, end:'2026-10-08', status:'active'},
-    {svc:'nethouse', amt:null, end:'2027-02-17', status:'active'},
-  ]},
-  {id:'novoe', name:'Новое место', owner:'masha', archived:false, subs:[
-    {svc:'Ройстат', amt:null, end:'2026-07-12', status:'active'},
-    {svc:'Тайм веб', amt:null, end:'2026-10-08', status:'active'},
-    {svc:'Флексби', amt:null, end:null, status:'paused'},
-  ]},
-  {id:'novoe_fr', name:'Новое место Франшиза', owner:'masha', archived:false, subs:[
-    {svc:'Ройстат Франшиза', amt:null, end:'2026-07-24', status:'active'},
-  ]},
-  {id:'kovrolin', name:'Ковролин.ру', owner:'masha', archived:false, subs:[
-    {svc:'Ройстат', amt:null, end:'2026-07-29', status:'active'},
-    {svc:'Тильда', amt:null, end:'2027-02-16', status:'active'},
-    {svc:'Авито', amt:null, end:null, status:'paused'},
-  ]},
-  {id:'triniti', name:'Тринити', owner:'masha', archived:false, subs:[
-    {svc:'Хостинг', amt:null, end:'2027-06-22', status:'active'},
-    {svc:'Домен trinitymedical.ru', amt:null, end:'2027-06-17', status:'active'},
+  {id:'demo2', name:'Проект 2', owner:'masha', archived:false, subs:[
+    {svc:'Сервис C', amt:null, end:'2026-08-20', status:'active'},
   ]},
 ];
 
@@ -609,8 +573,7 @@ const calFilter = {person:'all'};
 const NAV_TITLE = {home:'Главная', projects:'Проекты', payments:'Оплаты', calendar:'Календарь', settings:'Настройки'};
 
 function defaultSettings(){return {theme:'light', digestTime:'09:00', tg:{yulia:'@yulia', masha:'@masha', token:'', yuliaChat:'', mashaChat:''}, notif:{d7:true,d3:true,d1:true,day:true,sent3:true,overdue:true,digest:true}};}
-function load(){
-  let s=null; try{ s=JSON.parse(localStorage.getItem(STORE)); }catch(e){}
+function normalizeState(s){
   if(!(s&&s.projects)) s={projects:JSON.parse(JSON.stringify(SEED)), memes:[]};
   if(!s.memes) s.memes=[];
   const d=defaultSettings();
@@ -619,8 +582,45 @@ function load(){
   s.settings.notif=Object.assign(d.notif, s.settings.notif||{});
   return s;
 }
-function save(){ localStorage.setItem(STORE, JSON.stringify(state)); }
+function load(){ let s=null; try{ s=JSON.parse(localStorage.getItem(STORE)); }catch(e){} return normalizeState(s); }
+function save(){ localStorage.setItem(STORE, JSON.stringify(state)); cloudPush(); }
 function applyTheme(){ document.body.classList.toggle('dark', state.settings.theme==='dark'); }
+function refreshAll(){ applyTheme(); renderAll(); if(currentView==='settings') renderSettings(); renderMeme(); }
+
+/* ===== Общая база (Supabase) — живая синхронизация между Юлей и Машей ===== */
+let cloud=null, myLastStamp='', pushTimer=null;
+function cloudConfigured(){ const c=window.BYBANK_CONFIG; return !!(c && c.url && c.key && !/ВСТАВЬ/.test(c.url) && window.supabase); }
+async function cloudInit(){
+  if(!cloudConfigured()) return false;
+  const c=window.BYBANK_CONFIG;
+  try{
+    cloud=window.supabase.createClient(c.url,c.key);
+    const {data,error}=await cloud.from('bybank').select('data,updated_at').eq('id',1).maybeSingle();
+    if(error) throw error;
+    if(data && data.data){ state=normalizeState(data.data); myLastStamp=data.updated_at||''; }
+    else { await cloudPushNow(); }
+    cloud.channel('bybank-row').on('postgres_changes',
+      {event:'*',schema:'public',table:'bybank',filter:'id=eq.1'},
+      p=>{ if(!p.new || (p.new.updated_at||'')===myLastStamp) return;
+        state=normalizeState(p.new.data); myLastStamp=p.new.updated_at||'';
+        refreshAll(); cloudToast('✓ Успешно'); }
+    ).subscribe();
+    return true;
+  }catch(e){ console.warn('Supabase:', e.message||e); return false; }
+}
+async function cloudPushNow(){
+  if(!cloud) return;
+  const stamp=new Date().toISOString(); myLastStamp=stamp;
+  const {error}=await cloud.from('bybank').upsert({id:1,data:state,updated_at:stamp});
+  if(error) console.warn('Supabase push:', error.message);
+}
+function cloudPush(){ if(!cloud) return; clearTimeout(pushTimer); pushTimer=setTimeout(cloudPushNow,400); }
+function cloudToast(msg){
+  let t=document.getElementById('toast');
+  if(!t){ t=document.createElement('div'); t.id='toast'; t.className='toast'; document.body.appendChild(t); }
+  t.textContent=msg; t.classList.add('on');
+  clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'),2600);
+}
 
 /* ================= HELPERS ================= */
 const MS=86400000;
@@ -680,7 +680,7 @@ function projLogo(p,size=38){
 
 /* ================= RENDER: chrome ================= */
 function renderChrome(){
-  document.getElementById('brand').innerHTML = icon('house',{size:40,circle:'var(--navy-soft)',color:'var(--navy)'})+'<b>PayFlow</b>';
+  document.getElementById('brand').innerHTML = icon('house',{size:40,circle:'var(--navy-soft)',color:'var(--navy)'})+'<b>BYbank</b>';
   const nav=[['home','house','Главная','var(--navy-soft)','var(--navy)'],
     ['projects','folder','Проекты','var(--blue-soft)','var(--blue)'],
     ['payments','wallet','Оплаты','var(--sky-soft)','var(--sky-ink)'],
@@ -1044,7 +1044,7 @@ async function tgTest(){
   const log=document.getElementById('tgLog'); log.textContent='Отправляю тест…';
   try{ let sent=0;
     for(const o of ['yulia','masha']){ const chat=state.settings.tg[o+'Chat']; if(!chat) continue;
-      await tgCall('sendMessage',{chat_id:chat,text:`PayFlow на связи ✅ Тест для ${NAMES[o]}`}); sent++; }
+      await tgCall('sendMessage',{chat_id:chat,text:`BYbank на связи ✅ Тест для ${NAMES[o]}`}); sent++; }
     log.textContent = sent ? `Тест отправлен (${sent}) ✅` : 'Заполни chat_id хотя бы у одного человека';
   }catch(e){ log.textContent='Ошибка: '+e.message; }
 }
@@ -1218,14 +1218,20 @@ function openDrawer(id){
   const dr=document.getElementById('drawer');
   const notesEl=document.getElementById('drNotes'); if(notesEl) notesEl.addEventListener('change',()=>{p.notes=notesEl.value;save();});
   dr.querySelectorAll('.amt-in').forEach(inp=>inp.addEventListener('change',()=>{
-    const v=parseInt(inp.value,10); p.subs[+inp.dataset.i].amt=isNaN(v)?null:v;
+    const v=parseInt(inp.value,10); const s=p.subs[+inp.dataset.i]; s.amt=isNaN(v)?null:v;
     save(); renderStats(); renderPayList(); renderProjList(); renderCalendar();
+    const chip=inp.closest('.dr-svc').querySelector('.nextchip');
+    if(chip) chip.outerHTML=`<span class="nextchip ${nextAction(s).tone}">${statusText(s)}${s.end?' · до '+fmt(s.end):''}${s.amt?' · '+money(s.amt):''}</span>`;
   }));
   dr.querySelectorAll('.svc-st').forEach(sel=>sel.addEventListener('change',()=>{
     p.subs[+sel.dataset.st].status=sel.value; save(); renderAll(); openDrawer(id);
   }));
   dr.querySelectorAll('.svc-dt').forEach(inp=>inp.addEventListener('change',()=>{
-    p.subs[+inp.dataset.dt].end=inp.value||null; save(); renderAll(); openDrawer(id);
+    p.subs[+inp.dataset.dt].end=inp.value||null;
+    save(); renderStats(); renderPayList(); renderProjList(); renderCalendar();
+    const chip=inp.closest('.dr-svc').querySelector('.nextchip');
+    const s=p.subs[+inp.dataset.dt];
+    if(chip) chip.outerHTML=`<span class="nextchip ${nextAction(s).tone}">${statusText(s)}${s.end?' · до '+fmt(s.end):''}${s.amt?' · '+money(s.amt):''}</span>`;
   }));
   dr.querySelectorAll('button[data-act]').forEach(b=>b.addEventListener('click',()=>{
     applySubAction(p,+b.dataset.i,b.dataset.act); save(); renderAll(); openDrawer(id);
@@ -1292,10 +1298,30 @@ document.getElementById('ic-proj').outerHTML = icon('folder',{size:30,circle:'va
 document.getElementById('ic-cal').outerHTML  = icon('cal',{size:30,circle:'var(--mint-soft)',color:'var(--mint-ink)'});
 document.getElementById('ic-meme').outerHTML = icon('clover',{size:30,circle:'var(--coral-soft)',color:'var(--coral)'});
 
-applyTheme();
-renderAll();
-memeIdx=dayIndex();
-renderMeme();
+function startApp(){
+  applyTheme();
+  renderAll();
+  memeIdx=dayIndex();
+  renderMeme();
+  // подключаем общую базу (если заполнен config.js) — потом перерисовываем свежими данными
+  cloudInit().then(ok=>{ if(ok){ refreshAll(); cloudToast('☁️ Общая база подключена'); } });
+}
+// Пароль на вход (задаётся в config.js). Если пароля нет — вход свободный.
+(function bootGate(){
+  const pass = window.BYBANK_CONFIG && window.BYBANK_CONFIG.password;
+  const gate = document.getElementById('gate');
+  if(!pass){ startApp(); return; }
+  if(sessionStorage.getItem('bybank-gate')==='ok'){ startApp(); return; }
+  gate.hidden=false;
+  const submit=()=>{
+    if(document.getElementById('gatePass').value===pass){
+      sessionStorage.setItem('bybank-gate','ok'); gate.hidden=true; startApp();
+    } else { document.getElementById('gateErr').textContent='Неверный пароль'; }
+  };
+  document.getElementById('gateBtn').onclick=submit;
+  document.getElementById('gatePass').addEventListener('keydown',e=>{ if(e.key==='Enter') submit(); });
+  document.getElementById('gatePass').focus();
+})();
 </script>
 </body>
 </html>
