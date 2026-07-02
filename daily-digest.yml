@@ -1,0 +1,20 @@
+name: Daily digest
+
+on:
+  schedule:
+    - cron: '0 6 * * *'      # 06:00 UTC = 09:00 МСК, каждый день
+  workflow_dispatch: {}       # кнопка ручного запуска на вкладке Actions
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Send digest
+        run: node bot/send-digest.js
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}

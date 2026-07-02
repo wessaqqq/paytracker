@@ -1,0 +1,29 @@
+{
+  "projects": [
+    { "id": "evex", "name": "EvExperts", "owner": "yulia", "archived": false, "subs": [
+      { "svc": "Альбато", "amt": null, "end": "2026-07-03", "status": "active" },
+      { "svc": "Тильда", "amt": null, "end": "2026-07-05", "status": "active" }
+    ] },
+    { "id": "refresh", "name": "Refresh Clinic", "owner": "yulia", "archived": false, "subs": [
+      { "svc": "Ройстат", "amt": null, "end": "2026-07-24", "status": "active" }
+    ] },
+    { "id": "marsel", "name": "СК Марсель", "owner": "yulia", "archived": false, "subs": [
+      { "svc": "Ройстат", "amt": null, "end": "2026-07-02", "status": "active" },
+      { "svc": "Подписка Сергей", "amt": null, "end": "2026-07-09", "status": "waiting" }
+    ] },
+    { "id": "smartx", "name": "SmartX", "owner": "yulia", "archived": false, "subs": [
+      { "svc": "Roistat", "amt": null, "end": "2026-06-21", "status": "active" }
+    ] },
+    { "id": "dmp", "name": "DMP", "owner": "masha", "archived": false, "subs": [
+      { "svc": "Roistat", "amt": null, "end": "2026-07-29", "status": "active" },
+      { "svc": "Salebot", "amt": null, "end": "2026-07-12", "status": "active" }
+    ] },
+    { "id": "novoe", "name": "Новое место", "owner": "masha", "archived": false, "subs": [
+      { "svc": "Ройстат", "amt": null, "end": "2026-07-12", "status": "active" }
+    ] }
+  ],
+  "memes": [],
+  "settings": {
+    "notif": { "d7": true, "d3": true, "d1": true, "day": true, "sent3": true, "overdue": true, "digest": true }
+  }
+}
