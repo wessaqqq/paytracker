@@ -33,35 +33,43 @@ function buildDigest(state) {
   const n = (state.settings && state.settings.notif) || {};
   const notif = { hot: n.hot !== false, soon10: n.soon10 !== false, overdue: n.overdue !== false, waiting: n.waiting !== false };
   const tg = (state.settings && state.settings.tg) || {};
-  const groups = { overdue: [], hot: [], soon10: [], waiting: [] };
-  const pinged = new Set();
+
+  // Группируем по владельцу: каждому — свой блок (сразу видно «где мои, где твои»)
+  const byOwner = {};
+  const bucket = o => byOwner[o] || (byOwner[o] = { overdue: [], hot: [], soon10: [], waiting: [] });
 
   (state.projects || []).filter(p => !p.archived).forEach(p => {
     (p.subs || []).forEach(s => {
       if (s.status === 'paused' || s.status === 'closed') return;
-      const handle = tg[p.owner] ? String(tg[p.owner]).replace(/^@?/, '@') : '';
-      const owner = handle ? `${NAMES[p.owner] || ''} ${handle}` : (NAMES[p.owner] || '');
+      const g = bucket(p.owner);
       if (s.end) {
         const d = daysTo(s.end);
-        if (notif.overdue && d < 0) { groups.overdue.push(`• ${s.svc} — ${p.name} (${owner}), было ${fmt(s.end)}`); if (handle) pinged.add(handle); }
-        else if (notif.hot && d >= 0 && isHotToday(s.end)) { groups.hot.push(`• ${s.svc} — ${p.name} (${owner}) — оплатить до ${fmtDate(payDeadline(s.end))}`); if (handle) pinged.add(handle); }
-        else if (notif.soon10 && d >= 8 && d <= 10) { groups.soon10.push(`• ${s.svc} — ${p.name} (${owner}) — через ${d} дн., ${fmt(s.end)}`); if (handle) pinged.add(handle); }
+        if (notif.overdue && d < 0) g.overdue.push(`• ${s.svc} — ${p.name}, было ${fmt(s.end)}`);
+        else if (notif.hot && d >= 0 && isHotToday(s.end)) g.hot.push(`• ${s.svc} — ${p.name} — оплатить до ${fmtDate(payDeadline(s.end))}`);
+        else if (notif.soon10 && d >= 8 && d <= 10) g.soon10.push(`• ${s.svc} — ${p.name} — через ${d} дн., ${fmt(s.end)}`);
       }
-      if (notif.waiting && s.status === 'waiting') { groups.waiting.push(`• ${s.svc} — ${p.name} (${owner})`); if (handle) pinged.add(handle); }
+      if (notif.waiting && s.status === 'waiting') g.waiting.push(`• ${s.svc} — ${p.name}`);
     });
   });
 
-  const hasAny = groups.overdue.length + groups.hot.length + groups.soon10.length + groups.waiting.length;
-  if (!hasAny) return null;   // тихий день — не шлём ничего
-
   const dateLabel = `${today.getUTCDate()} ${MON[today.getUTCMonth()]}`;
   const parts = [`🔔 <b>BYbank — оплаты на ${dateLabel}</b>`];
-  if (groups.overdue.length) parts.push(`\n⚠ <b>Просрочено:</b>\n` + groups.overdue.join('\n'));
-  if (groups.hot.length)     parts.push(`\n🔥 <b>Очень-очень пора платить (2 дн):</b>\n` + groups.hot.join('\n'));
-  if (groups.soon10.length)  parts.push(`\n📌 <b>Пора платить (10 дн):</b>\n` + groups.soon10.join('\n'));
-  if (groups.waiting.length) parts.push(`\n📨 <b>Ждём оплату клиента:</b>\n` + groups.waiting.join('\n'));
-  if (pinged.size) parts.push('\n' + [...pinged].join(' ') + ' — проверьте, пожалуйста 🙌');
+  let hasAny = false;
 
+  ['yulia', 'masha'].forEach(o => {
+    const g = byOwner[o]; if (!g) return;
+    if (!(g.overdue.length + g.hot.length + g.soon10.length + g.waiting.length)) return;
+    hasAny = true;
+    const handle = tg[o] ? String(tg[o]).replace(/^@?/, '@') : '';
+    const sub = [`\n━━━━━━━━━━━━\n👤 <b>${NAMES[o] || ''}${handle ? ' ' + handle : ''}</b>`];
+    if (g.overdue.length) sub.push(`⚠ <b>Просрочено:</b>\n` + g.overdue.join('\n'));
+    if (g.hot.length)     sub.push(`🔥 <b>Очень-очень пора платить (2 дн):</b>\n` + g.hot.join('\n'));
+    if (g.soon10.length)  sub.push(`📌 <b>Пора платить (10 дн):</b>\n` + g.soon10.join('\n'));
+    if (g.waiting.length) sub.push(`📨 <b>Ждём оплату клиента:</b>\n` + g.waiting.join('\n'));
+    parts.push(sub.join('\n\n'));
+  });
+
+  if (!hasAny) return null;   // тихий день — не шлём ничего
   return parts.join('\n');
 }
 
@@ -109,12 +117,13 @@ async function main() {
     const y = nick('yulia'), m = nick('masha');
     const text =
       `🧪 <b>BYbank — тест (пример письма)</b>\n` +
-      `Так будут выглядеть напоминания. Данные тут выдуманные — для проверки формата.\n` +
-      `\n⚠ <b>Просрочено:</b>\n• Роистат — Марсель (Юля ${y}), было 02.07.26` +
-      `\n\n🔥 <b>Очень-очень пора платить (2 дн):</b>\n• Тильда — EvExperts (Юля ${y}) — оплатить до 05.07.26` +
-      `\n\n📌 <b>Пора платить (10 дн):</b>\n• Ройстат — Fortex (Маша ${m}) — через 10 дн., 14.07.26` +
-      `\n\n📨 <b>Ждём оплату клиента:</b>\n• Подписка Сергей — Марсель (Маша ${m})` +
-      `\n\n${y} ${m} — проверьте, пожалуйста 🙌` +
+      `Так будут выглядеть напоминания — сгруппированы по человеку. Данные выдуманные, для проверки формата.\n` +
+      `\n━━━━━━━━━━━━\n👤 <b>Юля ${y}</b>` +
+      `\n\n⚠ <b>Просрочено:</b>\n• Ройстат — Марсель, было 02.07.26` +
+      `\n\n🔥 <b>Очень-очень пора платить (2 дн):</b>\n• Тильда — EvExperts — оплатить до 05.07.26` +
+      `\n\n━━━━━━━━━━━━\n👤 <b>Маша ${m}</b>` +
+      `\n\n📌 <b>Пора платить (10 дн):</b>\n• Ройстат — Fortex — через 10 дн., 14.07.26` +
+      `\n\n📨 <b>Ждём оплату клиента:</b>\n• Подписка Сергей — Ковролин Ру` +
       `\n\n✅ Бот подключён к общей базе — по будням в 09:00 будет присылать это по вашим реальным оплатам.`;
     const r = await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
