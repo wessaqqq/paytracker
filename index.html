@@ -204,7 +204,7 @@
   /* ---------- drawer ---------- */
   .backdrop{position:fixed;inset:0;background:rgba(59,55,46,.28);backdrop-filter:blur(2px);opacity:0;pointer-events:none;transition:.25s;z-index:40}
   .backdrop.on{opacity:1;pointer-events:auto}
-  .drawer{position:fixed;top:0;right:0;height:100vh;width:430px;max-width:92vw;background:var(--bg2);
+  .drawer{position:fixed;top:0;right:0;height:100vh;width:520px;max-width:94vw;background:var(--bg2);
     box-shadow:-20px 0 50px -24px rgba(90,70,40,.5);transform:translateX(105%);transition:.28s cubic-bezier(.4,0,.2,1);
     z-index:50;overflow-y:auto;padding:24px 26px 40px}
   .drawer.on{transform:translateX(0)}
@@ -215,10 +215,14 @@
   .dr-owner-line .lab{font-size:13px;color:var(--ink-soft)}
   .mini-av{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:700;font-size:12px}
   .dr-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+  @keyframes svcFlash{0%{box-shadow:0 0 0 0 rgba(65,105,221,.0)}20%{box-shadow:0 0 0 3px rgba(65,105,221,.45)}100%{box-shadow:0 0 0 0 rgba(65,105,221,0)}}
+  .svc-flash{animation:svcFlash 1.6s ease-out}
   .svc-openlink{color:var(--blue-ink);text-decoration:none;font-weight:700}
   .svc-openlink:hover{text-decoration:underline}
   .svc-open{display:inline-block;margin-top:8px;font-size:12.5px;font-weight:600;color:var(--blue-ink);text-decoration:none}
   .svc-open:hover{text-decoration:underline}
+  .svc-invoice{display:block;margin-top:12px;text-align:center;font-size:12.5px;font-weight:700;color:var(--lav-ink);background:var(--lav-soft);border:1.5px solid var(--lav);padding:10px;border-radius:12px;text-decoration:none}
+  .svc-invoice:hover{filter:brightness(.97)}
   .dr-del-proj{width:100%;margin-bottom:22px;border:1px solid var(--coral-soft);background:transparent;color:var(--coral-ink);cursor:pointer;font-family:inherit;font-size:12.5px;font-weight:600;padding:9px;border-radius:11px;transition:.15s}
   .dr-del-proj:hover{background:var(--coral-soft)}
   .dr-btn{border:0;cursor:pointer;font-family:inherit;font-weight:650;font-size:13.5px;padding:12px;border-radius:14px;box-shadow:var(--shadow-sm);background:var(--card);color:var(--ink);transition:.15s;display:flex;align-items:center;justify-content:center;gap:8px}
@@ -250,7 +254,7 @@
   .svc-add-btn{border:0;cursor:pointer;font-family:inherit;font-weight:650;font-size:13.5px;padding:11px;border-radius:12px;background:linear-gradient(135deg,#4169dd,#293681);color:#fff}
   .svc-del{border:0;background:transparent;color:var(--ink-faint);cursor:pointer;font-size:13px;padding:5px 8px;border-radius:8px}
   .svc-del:hover{background:var(--coral-soft);color:var(--coral-ink)}
-  .svc-primary{width:100%;border:0;cursor:pointer;font-family:inherit;font-weight:700;font-size:13.5px;padding:11px;border-radius:12px;color:#fff;transition:.15s;box-shadow:var(--shadow-sm)}
+  .svc-primary{width:100%;margin-top:10px;border:0;cursor:pointer;font-family:inherit;font-weight:700;font-size:13.5px;padding:11px;border-radius:12px;color:#fff;transition:.15s;box-shadow:var(--shadow-sm)}
   .svc-primary:hover{filter:brightness(1.06);transform:translateY(-1px)}
   .svc-second{display:flex;gap:8px;margin-top:8px}
   .svc-second button{flex:1;border:0;cursor:pointer;font-family:inherit;font-size:12px;font-weight:650;padding:8px;border-radius:10px;background:var(--bg2);color:var(--ink-soft);transition:.15s}
@@ -575,13 +579,21 @@ const SEED = [
 ];
 
 let state = load();
-let curWho = 'yulia';           // 'yulia' | 'masha' | 'all'
+let curWho = (()=>{ const w=localStorage.getItem('bybank-who'); return (w==='yulia'||w==='masha'||w==='all')?w:'yulia'; })();  // запоминается в браузере
 let currentView = 'home';       // 'home' | 'projects' | 'payments' | 'calendar' | 'settings'
 let calDate = new Date(TODAY.getFullYear(),TODAY.getMonth(),1);
 let selDay = TODAY_ISO;
 const projFilter = {q:'', person:'all', status:'all', arch:false};
 const payFilter = {q:'', person:'all', status:'all'};
 const calFilter = {person:'all'};
+// Запоминаем состояние интерфейса (вкладка, фильтры) — чтобы при обновлении ничего не слетало
+function saveUI(){ try{ localStorage.setItem('bybank-ui', JSON.stringify({view:currentView, projFilter, payFilter})); }catch(e){} }
+(function loadUI(){ try{ const u=JSON.parse(localStorage.getItem('bybank-ui')||'{}');
+  if(u.projFilter) Object.assign(projFilter,u.projFilter);
+  if(u.payFilter) Object.assign(payFilter,u.payFilter);
+  if(u.view) currentView=u.view;
+  projFilter.q=''; payFilter.q='';   // поиск не запоминаем — начинаем с чистого
+}catch(e){} })();
 const NAV_TITLE = {home:'Главная', projects:'Проекты', payments:'Оплаты', calendar:'Календарь', settings:'Настройки'};
 
 function defaultSettings(){return {theme:'light', digestTime:'09:00', tg:{yulia:'@yulia', masha:'@masha', token:'', yuliaChat:'', mashaChat:''}, notif:{hot:true,soon10:true,overdue:true,waiting:true}};}
@@ -736,6 +748,32 @@ const SVC_LINKS=[
 ];
 function svcLink(s){ if(s.url) return /^https?:\/\//i.test(s.url)?s.url:'https://'+s.url; for(const [re,u] of SVC_LINKS) if(re.test(s.svc)) return u; return null; }
 function linkHost(u){ try{ return new URL(u).hostname.replace(/^www\./,''); }catch(e){ return 'сайт'; } }
+// Номера проектов в Ройстате (по названию проекта) — проставляются автоматически пустым Ройстат-сервисам
+const ROISTAT_MAP = {
+  'планета септиков': {default:'300277'},
+  'massimo tinelli':  {default:'280272'},
+  'metriks':          {default:'301339'},
+  'новое место':      {default:'281939', franchise:'299618'},
+  'indlab (весы)':    {default:'292195'},
+  'ковролин ру':      {default:'298339'},
+  'инлаб':            {default:'289397'},
+  'smart-x':          {default:'267941'},
+  'refresh clinic':   {default:'291348'},
+  'марсель':          {default:'294361'},
+  'fortex':           {default:'301241'},
+};
+function applyRoistatIds(){
+  let changed=false;
+  (state.projects||[]).forEach(p=>{
+    const m=ROISTAT_MAP[(p.name||'').trim().toLowerCase()]; if(!m) return;
+    (p.subs||[]).forEach(s=>{
+      if(s.rid || !/ройстат|roistat/i.test(s.svc)) return;   // не трогаем уже заполненное
+      const rid = /франшиз/i.test(s.svc) ? (m.franchise||m.default) : m.default;
+      if(rid){ s.rid=rid; changed=true; }
+    });
+  });
+  if(changed){ save(); if(currentView==='projects') renderProjects(); }
+}
 const svcTone = ['coral','yellow','blue','green','pink','lav'];
 function svcColor(name){
   let h=0; for(const ch of name) h=(h*31+ch.charCodeAt(0))>>>0;
@@ -816,7 +854,7 @@ function renderTop(){
 
 function allSubs(){
   const arr=[];
-  scopeProjects().forEach(p=>p.subs.forEach(s=>arr.push({p,s})));
+  scopeProjects().forEach(p=>p.subs.forEach((s,i)=>arr.push({p,s,i})));
   return arr;
 }
 function renderStats(){
@@ -844,9 +882,9 @@ function renderPayList(){
   const items = allSubs()
     .filter(x=>x.s.end && x.s.status!=='paused' && x.s.status!=='closed')
     .sort((a,b)=>days(a.s.end)-days(b.s.end)).slice(0,6);
-  document.getElementById('payList').innerHTML = items.map(({p,s})=>{
+  document.getElementById('payList').innerHTML = items.map(({p,s,i})=>{
     const [bg,ink]=svcColor(s.svc); const w=whenLabel(days(s.end)); const na=nextAction(s);
-    return `<div class="prow" data-proj="${p.id}">
+    return `<div class="prow" data-proj="${p.id}" data-svc="${i}">
       <span class="svc-badge" style="background:${bg};color:${ink}">${s.svc[0]}</span>
       <div class="mid"><div class="nm">${s.svc}</div><div class="sm">${p.name} · ${na.t}</div></div>
       <div class="right"><span class="amt">${money(s.amt)}</span><span class="when ${w.c}">${w.t}</span></div>
@@ -888,7 +926,7 @@ function switchView(v){
   else if(v==='calendar'){ document.getElementById('view-calendar').hidden=false; renderCalendarBig(); }
   else if(v==='settings'){ document.getElementById('view-settings').hidden=false; renderSettings(); }
   else { document.getElementById('view-placeholder').hidden=false; document.getElementById('phTitle').textContent=NAV_TITLE[v]||''; }
-  renderChrome(); renderTop();
+  renderChrome(); renderTop(); saveUI();
 }
 function renderChips(elId,opts,cur,onPick){
   const el=document.getElementById(elId);
@@ -906,8 +944,9 @@ function projectsFiltered(){
   }).sort((a,b)=>a.name.localeCompare(b.name,'ru'));
 }
 function renderProjects(){
-  renderChips('projPerson',[['all','Все'],['yulia','Юля'],['masha','Маша']],projFilter.person,v=>{projFilter.person=v;renderProjects();renderTop();});
-  renderChips('projStatus',[['all','Все'],['active','Активные'],['soon','Скоро'],['overdue','Просрочено'],['paused','Пауза']],projFilter.status,v=>{projFilter.status=v;renderProjects();renderTop();});
+  const archEl=document.getElementById('projArch'); if(archEl) archEl.checked=projFilter.arch;
+  renderChips('projPerson',[['all','Все'],['yulia','Юля'],['masha','Маша']],projFilter.person,v=>{projFilter.person=v;saveUI();renderProjects();renderTop();});
+  renderChips('projStatus',[['all','Все'],['active','Активные'],['soon','Скоро'],['overdue','Просрочено'],['paused','Пауза']],projFilter.status,v=>{projFilter.status=v;saveUI();renderProjects();renderTop();});
   const list=projectsFiltered();
   document.getElementById('projGrid').innerHTML = list.map(p=>{
     const b={overdue:0,soon:0,waiting:0,client_paid:0,active:0,paused:0,closed:0};
@@ -944,8 +983,8 @@ function paymentsFiltered(){
   return out.sort((a,b)=>(a.s.end?days(a.s.end):9999)-(b.s.end?days(b.s.end):9999));
 }
 function renderPayments(){
-  renderChips('payPerson',[['all','Все'],['yulia','Юля'],['masha','Маша']],payFilter.person,v=>{payFilter.person=v;renderPayments();renderTop();});
-  renderChips('payStatus',PAY_STATUSES,payFilter.status,v=>{payFilter.status=v;renderPayments();renderTop();});
+  renderChips('payPerson',[['all','Все'],['yulia','Юля'],['masha','Маша']],payFilter.person,v=>{payFilter.person=v;saveUI();renderPayments();renderTop();});
+  renderChips('payStatus',PAY_STATUSES,payFilter.status,v=>{payFilter.status=v;saveUI();renderPayments();renderTop();});
   document.getElementById('payAll').innerHTML = paymentsFiltered().map(({p,s,i})=>{
     const [bg,ink]=svcColor(s.svc); const na=nextAction(s); const pa=primaryAction(s);
     const w=s.end?whenLabel(days(s.end)):null;
@@ -1175,7 +1214,7 @@ function applySubAction(p,i,act){
   else if(act==='extend'){ if(s.end){ s.end=shiftISO(s.end,{days:30}); logEvent(p,s.svc,'📅 Продлено на 30 дней'); } }
 }
 const HIST_COLOR=e=>e.includes('Оплачено')?'var(--green)':e.includes('Клиент оплатил')?'var(--mint)':e.includes('Платёжка')?'var(--coral)':e.includes('пауз')||e.includes('Пауза')?'var(--ink-faint)':e.includes('Продлено')?'var(--sky)':'var(--blue)';
-function openDrawer(id){
+function openDrawer(id, focusIdx){
   const p=state.projects.find(x=>x.id===id); if(!p)return;
   const avC=p.owner==='yulia'?'var(--lav)':'var(--coral)';
   const hist=p.history||[];
@@ -1196,9 +1235,9 @@ function openDrawer(id){
     <div class="dr-sec">Заметка</div>
     <textarea class="dr-note" id="drNotes" placeholder="Напр.: клиент оплатит после 10-го · не беспокоить до пн · ждёт счёт…">${p.notes||''}</textarea>
     <div class="dr-sec" style="margin-top:16px">Сервисы · ${p.subs.length}</div>
-    ${p.subs.map((s,i)=>{const [bg,ink]=svcColor(s.svc);const pa=primaryAction(s);const lk=svcLink(s);
+    ${p.subs.map((s,i)=>{const [bg,ink]=svcColor(s.svc);const pa=primaryAction(s);const lk=svcLink(s);const isRoistat=/ройстат|roistat/i.test(s.svc);
       const opts=[['active','Активна'],['waiting','Ждём оплату клиента'],['client_paid','Клиент оплатил'],['paused','На паузе'],['closed','Закрыто']];
-      return `<div class="dr-svc">
+      return `<div class="dr-svc" data-svcidx="${i}">
         <div class="r1"><span class="nm"><span class="svc-badge" style="width:26px;height:26px;font-size:12px;background:${bg};color:${ink};display:inline-grid;vertical-align:middle;margin-right:8px">${s.svc[0]}</span>${lk?`<a href="${lk}" target="_blank" rel="noopener" class="svc-openlink" title="Открыть ${lk}">${s.svc} ↗</a>`:s.svc}</span>
           <button class="svc-del" data-act="del" data-i="${i}" title="Удалить сервис">✕</button></div>
         <div style="margin-bottom:2px"><span class="nextchip ${nextAction(s).tone}">${statusText(s)}${s.end?' · до '+fmt(s.end):''}${s.amt?' · '+money(s.amt):''}</span></div>
@@ -1209,6 +1248,8 @@ function openDrawer(id){
         </div>
         <input class="svc-in svc-url" data-url="${i}" placeholder="🔗 ссылка на сервис (по желанию)" value="${s.url||''}" style="width:100%;margin-top:8px">
         ${lk?`<a href="${lk}" target="_blank" rel="noopener" class="svc-open">↗ Открыть ${linkHost(lk)}</a>`:''}
+        ${isRoistat?`<input class="svc-in svc-rid" data-rid="${i}" placeholder="№ проекта в Ройстате (напр. 301764)" value="${s.rid||''}" style="width:100%;margin-top:8px">
+        ${s.rid?`<a href="https://cloud.roistat.com/billing/balance?projectId=${encodeURIComponent(s.rid)}" target="_blank" rel="noopener" class="svc-invoice">🧾 Счёт в Ройстате → «Пополнить баланс» → «скачать счёт»</a>`:''}`:''}
         ${pa?`<button class="svc-primary" data-act="${pa.act}" data-i="${i}" style="background:${pa.bg}">${pa.label}</button>`:''}
         <div class="svc-second">
           <button data-act="extend" data-i="${i}">📅 +30 дней</button>
@@ -1234,8 +1275,11 @@ function openDrawer(id){
     ${hist.length? `<div class="tl">${hist.slice(0,14).map(e=>`<div class="tl-item"><span class="tl-dot" style="background:${HIST_COLOR(e.t)}"></span>
       <div class="tl-body"><div class="t">${e.t}${e.svc?' · '+e.svc:''}</div><div class="d">${e.d} · ${NAMES[e.who]||''}</div></div></div>`).join('')}</div>`
       : '<div class="dd-empty" style="padding-bottom:10px">История появится после первого действия ↑</div>'}`;
-  document.getElementById('drawer').classList.add('on');
+  const drEl=document.getElementById('drawer');
+  drEl.classList.add('on');
   document.getElementById('backdrop').classList.add('on');
+  if(focusIdx!=null){ const t=drEl.querySelector(`.dr-svc[data-svcidx="${focusIdx}"]`);
+    if(t){ setTimeout(()=>{ t.scrollIntoView({block:'center',behavior:'smooth'}); t.classList.add('svc-flash'); },120); } }
   document.getElementById('drClose').onclick=closeDrawer;
   document.getElementById('drPass').onclick=()=>{p.owner=OTHER[p.owner];logEvent(p,'','↔ Передан ' + NAMES[p.owner]);save();renderAll();openDrawer(id);};
   document.getElementById('drArch').onclick=()=>{p.archived=!p.archived;save();closeDrawer();renderAll();};
@@ -1269,6 +1313,13 @@ function openDrawer(id){
     if(v) s.url=v; else delete s.url;
     save(); openDrawer(id);   // перерисуем, чтобы появилась/обновилась кликабельная ссылка
   }));
+  dr.querySelectorAll('.svc-rid').forEach(inp=>inp.addEventListener('change',()=>{
+    const raw=inp.value.trim(); const m=raw.match(/projectId=(\d+)/i);
+    const v=m?m[1]:raw.replace(/\D/g,'');   // принимаем и номер, и полную ссылку
+    const s=p.subs[+inp.dataset.rid];
+    if(v) s.rid=v; else delete s.rid;
+    save(); openDrawer(id);
+  }));
   dr.querySelectorAll('button[data-act]').forEach(b=>b.addEventListener('click',()=>{
     applySubAction(p,+b.dataset.i,b.dataset.act); save(); renderAll(); openDrawer(id);
   }));
@@ -1294,12 +1345,14 @@ function closeDrawer(){document.getElementById('drawer').classList.remove('on');
 /* ================= WIRE ================= */
 function renderAll(){renderChrome();renderTop();renderStats();renderPayList();renderProjList();renderCalendar();if(currentView==='projects')renderProjects();if(currentView==='payments')renderPayments();if(currentView==='calendar')renderCalendarBig();}
 document.getElementById('whoList').addEventListener('click',e=>{
-  const o=e.target.closest('.who-opt'); if(!o)return; curWho=o.dataset.who; selDay=TODAY_ISO; renderAll();
+  const o=e.target.closest('.who-opt'); if(!o)return; curWho=o.dataset.who; localStorage.setItem('bybank-who',curWho);
+  projFilter.person=curWho; projFilter.status='active'; payFilter.person=curWho; payFilter.status='active';
+  selDay=TODAY_ISO; saveUI(); renderAll();
 });
 document.body.addEventListener('click',e=>{
   const rowAct=e.target.closest('[data-rowact]');
   if(rowAct){ const p=state.projects.find(x=>x.id===rowAct.dataset.pid); if(p){applySubAction(p,+rowAct.dataset.i,rowAct.dataset.rowact);save();renderAll();} return; }
-  const row=e.target.closest('[data-proj]'); if(row){openDrawer(row.dataset.proj);return;}
+  const row=e.target.closest('[data-proj]'); if(row){openDrawer(row.dataset.proj, row.dataset.svc!=null?+row.dataset.svc:null);return;}
   const cell=e.target.closest('[data-day]'); if(cell){selDay=cell.dataset.day;renderCalendar();if(currentView==='calendar')renderCalendarBig();}
 });
 document.getElementById('calPrev').onclick=()=>{calDate=new Date(calDate.getFullYear(),calDate.getMonth()-1,1);renderCalendar();};
@@ -1319,7 +1372,7 @@ document.querySelectorAll('.add-inline').forEach(b=>b.onclick=addProject);
 document.getElementById('nav').addEventListener('click',e=>{const a=e.target.closest('a[data-view]');if(!a)return;switchView(a.dataset.view);});
 // projects view filters
 document.getElementById('projSearch').addEventListener('input',e=>{projFilter.q=e.target.value;renderProjects();renderTop();});
-document.getElementById('projArch').addEventListener('change',e=>{projFilter.arch=e.target.checked;renderProjects();renderTop();});
+document.getElementById('projArch').addEventListener('change',e=>{projFilter.arch=e.target.checked;saveUI();renderProjects();renderTop();});
 document.getElementById('seeAllPay').onclick=()=>switchView('payments');
 document.getElementById('paySearch').addEventListener('input',e=>{payFilter.q=e.target.value;renderPayments();renderTop();});
 document.getElementById('calPrevLg').onclick=()=>{calDate=new Date(calDate.getFullYear(),calDate.getMonth()-1,1);renderCalendarBig();};
@@ -1337,8 +1390,10 @@ function startApp(){
   renderAll();
   memeIdx=dayIndex();
   renderMeme();
+  applyRoistatIds();
+  switchView(currentView);   // восстанавливаем сохранённую вкладку
   // подключаем общую базу (если заполнен config.js) — потом перерисовываем свежими данными
-  cloudInit().then(ok=>{ if(ok){ refreshAll(); } });
+  cloudInit().then(ok=>{ if(ok){ applyRoistatIds(); refreshAll(); } });
 }
 // Пароль на вход (задаётся в config.js). Если пароля нет — вход свободный.
 (function bootGate(){
